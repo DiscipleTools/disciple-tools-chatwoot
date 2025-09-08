@@ -1,0 +1,30 @@
+{
+  "name": "Disciple.Tools - Chatwoot",
+  "version": "0.1",
+  "last_updated": "2021-03",
+  "author": "Disciple.Tools",
+  "author_homepage": "https://disciple.tools",
+  "git_owner": "DiscipleTools",
+  "git_repo": "disciple-tools-chatwoot",
+  "download_url": "https://github.com/DiscipleTools/disciple-tools-chatwoot/releases/latest/download/disciple-tools-chatwoot.zip",
+  "homepage": "https://github.com/DiscipleTools/disciple-tools-chatwoot",
+  "issues_url": "https://github.com/DiscipleTools/disciple-tools-chatwoot/issues",
+  "projects_url": "https://github.com/DiscipleTools/disciple-tools-chatwoot/projects/1",
+  "discussions_url": "https://github.com/DiscipleTools/disciple-tools-chatwoot/discussions",
+  "wiki_url": "https://github.com/DiscipleTools/disciple-tools-chatwoot/wiki",
+  "license_url": "https://raw.githubusercontent.com/DiscipleTools/disciple-tools-chatwoot/master/LICENSE",
+  "readme_url": "https://raw.githubusercontent.com/DiscipleTools/disciple-tools-chatwoot/master/README.md",
+  "requires": "4.7",
+  "tested": "5.7",
+  "upgrade_notice": "Upgrade to get the latest features.",
+  "banners": {
+    "low": "https://raw.githubusercontent.com/DiscipleTools/disciple-tools-chatwoot/master/documentation/banner.png",
+    "high": "https://raw.githubusercontent.com/DiscipleTools/disciple-tools-chatwoot/master/documentation/banner.png"
+  },
+  "icon": "https://raw.githubusercontent.com/DiscipleTools/disciple-tools-chatwoot/master/documentation/icon.png",
+  "sections": {
+    "description": "Kick start your Disciple.Tools plugin project with this template! This plugin is a collection of our best practices and code bases for creating Disciple.Tools plugins. ",
+    "installation": "(Required) You must have Disciple.Tools Theme installed before using this plugin. Once Disciple.Tools is installed, you can use the normal Plugin system to install the plugin.",
+    "changelog": ""
+  }
+}
