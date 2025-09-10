@@ -47,7 +47,10 @@ class Disciple_Tools_Chatwoot_Endpoints
         $name = $params['conversation']['meta']['sender']['name'];
         $email = $params['conversation']['meta']['sender']['email'];
         $phone = $params['conversation']['meta']['sender']['phone_number'];
-        $facebook = $params['conversation']['meta']['sender']['additional_attributes']['social_profiles']['facebook'];
+        $facebook = '';
+        if ( isset( $params['conversation']['meta']['sender']['additional_attributes']['social_profiles']['facebook'] ) ){
+            $facebook = $params['conversation']['meta']['sender']['additional_attributes']['social_profiles']['facebook'];
+        }
         $chatwoot_conversation_id = $params['conversation']['id'];
         $inbox_id = $params['inbox']['id'];
         $inbox_name = $params['inbox']['name'];
