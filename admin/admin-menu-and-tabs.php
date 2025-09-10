@@ -248,8 +248,14 @@ class Disciple_Tools_Chatwoot_Tab_General {
                                 <li style="margin-bottom: 5px;">
                                     <strong>"Sync with D.T" macro</strong> - One-click labeling for agents
                                 </li>
-                                <li style="margin-bottom: 0;">
+                                <li style="margin-bottom: 5px;">
                                     <strong>Webhook</strong> - Real-time message synchronization
+                                </li>
+                                <li style="margin-bottom: 5px;">
+                                    <strong>Contact ID attribute</strong> - Stores Disciple.Tools contact ID
+                                </li>
+                                <li style="margin-bottom: 0;">
+                                    <strong>Contact URL attribute</strong> - Links to Disciple.Tools contact
                                 </li>
                             </ul>
                         </div>
@@ -350,6 +356,17 @@ class Disciple_Tools_Chatwoot_Tab_General {
             return 'Failed to create webhook: ' . $webhook_result;
         }
 
+        // Create custom attributes
+        $contact_id_result = $this->create_custom_attribute( $chatwoot_url, $chatwoot_api_key, $account_id, 'contact_id', 'number', 'Contact ID' );
+        if ( $contact_id_result !== true ) {
+            return 'Failed to create contact_id custom attribute: ' . $contact_id_result;
+        }
+
+        $contact_url_result = $this->create_custom_attribute( $chatwoot_url, $chatwoot_api_key, $account_id, 'contact_url', 'link', 'Contact URL' );
+        if ( $contact_url_result !== true ) {
+            return 'Failed to create contact_url custom attribute: ' . $contact_url_result;
+        }
+
         // Save integration setup status
         update_option( $token . '_integration_setup', true );
 
@@ -440,6 +457,7 @@ class Disciple_Tools_Chatwoot_Tab_General {
         }
 
         $api_url = $chatwoot_url . '/api/v1/accounts/' . $account_id . '/macros';
+        $webhook_url = rest_url( 'dt-public/chatwoot/v1/sync' ) . '?trigger=true';
         
         $data = array(
             'name' => 'Sync with D.T',
@@ -448,6 +466,10 @@ class Disciple_Tools_Chatwoot_Tab_General {
                 array(
                     'action_name' => 'add_label',
                     'action_params' => array('dt-sync')
+                ),
+                array(
+                    'action_name' => 'send_webhook_event',
+                    'action_params' => array($webhook_url)
                 )
             )
         );
@@ -538,7 +560,7 @@ class Disciple_Tools_Chatwoot_Tab_General {
             'subscriptions' => array(
                 'message_created',
                 // 'message_updated',
-                'conversation_updated',
+                //'conversation_updated',
                 // 'conversation_status_changed',
                 // 'contact_updated'
 
@@ -567,6 +589,45 @@ class Disciple_Tools_Chatwoot_Tab_General {
         $error_data = json_decode( $body, true );
         
         // If webhook already exists, that's OK
+        if ( $response_code === 422 && strpos( $body, 'already been taken' ) !== false ) {
+            return true;
+        }
+
+        return 'HTTP ' . $response_code . ': ' . ( isset( $error_data['message'] ) ? $error_data['message'] : $body );
+    }
+
+    private function create_custom_attribute( $chatwoot_url, $api_key, $account_id, $attribute_key, $attribute_type, $attribute_display_name ) {
+        $api_url = $chatwoot_url . '/api/v1/accounts/' . $account_id . '/custom_attribute_definitions';
+        
+        $data = array(
+            'attribute_display_name' => $attribute_display_name,
+            'attribute_key' => $attribute_key,
+            'attribute_display_type' => $attribute_type,
+            'attribute_model' => 'contact_attribute'
+        );
+
+        $response = wp_remote_post( $api_url, array(
+            'headers' => array(
+                'Content-Type' => 'application/json',
+                'api_access_token' => $api_key,
+            ),
+            'body' => json_encode( $data ),
+            'timeout' => 30
+        ));
+
+        if ( is_wp_error( $response ) ) {
+            return $response->get_error_message();
+        }
+
+        $response_code = wp_remote_retrieve_response_code( $response );
+        if ( $response_code === 200 || $response_code === 201 ) {
+            return true;
+        }
+
+        $body = wp_remote_retrieve_body( $response );
+        $error_data = json_decode( $body, true );
+        
+        // If custom attribute already exists, that's OK
         if ( $response_code === 422 && strpos( $body, 'already been taken' ) !== false ) {
             return true;
         }
