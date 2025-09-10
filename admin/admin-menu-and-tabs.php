@@ -183,33 +183,105 @@ class Disciple_Tools_Chatwoot_Tab_General {
                     <td></td>
                 </tr>
                 <?php if ( !empty( $chatwoot_url ) && !empty( $chatwoot_api_key ) ): ?>
-                <tr>
-                    <td colspan="2">
-                        <hr style="margin: 20px 0;">
-                        <h3>Integration Setup</h3>
-                    </td>
-                </tr>
-                <tr>
-                    <td>
-                        <strong><?php echo $integration_setup ? 'Chatwoot Integration Status' : 'Enable Chatwoot Integration'; ?></strong>
+                </tbody>
+            </table>
+        </form>
+        
+        <!-- Integration Setup Section -->
+        <div style="background: #fff; border: 1px solid #ccd0d4; box-shadow: 0 1px 1px rgba(0,0,0,.04); margin-top: 20px; padding: 0;">
+            <div style="background: #f1f1f1; border-bottom: 1px solid #ccd0d4; padding: 15px 20px;">
+                <h3 style="margin: 0; display: flex; align-items: center;">
+                    <span style="margin-right: 10px; font-size: 18px;"><?php echo $integration_setup ? '⚡' : '🔗'; ?></span>
+                    Integration Setup
+                </h3>
+            </div>
+            <div style="padding: 20px;">
+                <form method="post">
+                    <?php wp_nonce_field( 'dt_admin_form', 'dt_admin_form_nonce' ) ?>
+                    
+                    <div>
+                        <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 15px;">
+                            <h4 style="margin: 0; color: #23282d;">
+                                <?php echo $integration_setup ? 'Integration Status' : 'Chatwoot Integration'; ?>
+                            </h4>
+                            <?php if ( $integration_setup ): ?>
+                                <button type="submit" name="enable-integration" value="1" class="button" style="
+                                    background: #6c757d; 
+                                    border-color: #5a6268; 
+                                    color: #fff;
+                                    font-size: 12px;
+                                    padding: 6px 12px;
+                                    border-radius: 4px;
+                                    text-decoration: none;
+                                    cursor: pointer;
+                                " onmouseover="this.style.background='#5a6268'" 
+                                   onmouseout="this.style.background='#6c757d'">
+                                    ⚙️ Reconfigure
+                                </button>
+                            <?php endif; ?>
+                        </div>
+                        
                         <?php if ( $integration_setup ): ?>
-                            <p class="description" style="color: #46b450;">✓ Integration is configured and active</p>
-                            <p class="description">The following components are set up in your Chatwoot instance:</p>
+                            <div style="background: #d4edda; border: 1px solid #c3e6cb; border-radius: 4px; padding: 15px; margin-bottom: 15px;">
+                                <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 8px;">
+                                    <span style="color: #155724; font-weight: 500; font-size: 16px;">✅ Integration Active</span>
+                                </div>
+                                <p style="margin: 0; color: #155724; font-size: 14px;">Your Chatwoot instance is connected and synchronized</p>
+                            </div>
                         <?php else: ?>
-                            <p class="description">This will create the necessary components in your Chatwoot instance:</p>
+                            <div style="background: #fff3cd; border: 1px solid #ffeaa7; border-radius: 4px; padding: 15px; margin-bottom: 15px;">
+                                <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 8px;">
+                                    <span style="color: #856404; font-weight: 500; font-size: 16px;">⚠️ Setup Required</span>
+                                </div>
+                                <p style="margin: 0; color: #856404; font-size: 14px;">Click the button below to set up your Chatwoot integration</p>
+                            </div>
                         <?php endif; ?>
-                        <ul style="margin-left: 20px;">
-                            <li>• "dt-sync" label</li>
-                            <li>• "Sync with D.T" macro</li>
-                            <li>• Webhook for real-time synchronization</li>
-                        </ul>
-                    </td>
-                    <td>
-                        <button type="submit" name="enable-integration" value="1" class="button button-secondary" style="<?php echo $integration_setup ? 'background: #0073aa; border-color: #0073aa;' : 'background: #00a32a; border-color: #00a32a;'; ?> color: #fff;">
-                            <?php echo $integration_setup ? 'Reconfigure Integration' : 'Enable Integration'; ?>
-                        </button>
-                    </td>
-                </tr>
+                        
+                        <div style="background: #f8f9fa; border-radius: 4px; padding: 15px; margin-bottom: <?php echo $integration_setup ? '0' : '20px'; ?>;">
+                            <p style="margin: 0 0 10px 0; font-weight: 500; color: #495057;">
+                                <?php echo $integration_setup ? 'Configured Components:' : 'Components to be created:'; ?>
+                            </p>
+                            <ul style="margin: 0; padding-left: 20px; color: #6c757d;">
+                                <li style="margin-bottom: 5px;">
+                                    <strong>"dt-sync" label</strong> - Marks conversations for synchronization
+                                </li>
+                                <li style="margin-bottom: 5px;">
+                                    <strong>"Sync with D.T" macro</strong> - One-click labeling for agents
+                                </li>
+                                <li style="margin-bottom: 0;">
+                                    <strong>Webhook</strong> - Real-time message synchronization
+                                </li>
+                            </ul>
+                        </div>
+                        
+                        <?php if ( !$integration_setup ): ?>
+                            <div style="text-align: center;">
+                                <button type="submit" name="enable-integration" value="1" class="button" style="
+                                    background: #00a32a; 
+                                    border-color: #007f23;
+                                    color: #fff;
+                                    font-size: 16px;
+                                    height: auto;
+                                    padding: 15px 30px;
+                                    border-radius: 8px;
+                                    box-shadow: 0 3px 6px rgba(0,0,0,0.1);
+                                    transition: all 0.2s ease;
+                                    cursor: pointer;
+                                    font-weight: 600;
+                                    width: 100%;
+                                    max-width: 300px;
+                                " onmouseover="this.style.transform='translateY(-2px)'; this.style.boxShadow='0 6px 12px rgba(0,0,0,0.15)'; this.style.background='#028a22'" 
+                                   onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='0 3px 6px rgba(0,0,0,0.1)'; this.style.background='#00a32a'">
+                                    🚀 Enable Integration Now
+                                </button>
+                            </div>
+                        <?php endif; ?>
+                    </div>
+                </form>
+            </div>
+        </div>
+        
+        <table style="display: none;"><tbody><tr><td>
                 <?php endif; ?>
                 </tbody>
             </table>
