@@ -6,7 +6,7 @@ if ( ! defined( 'ABSPATH' ) ) { exit; } // Exit if accessed directly
  */
 class Disciple_Tools_Chatwoot_Menu {
 
-    public $token = 'disciple_tools_chatwoot';
+    public $token = 'dt_chatwoot';
     public $page_title = 'Chatwoot';
 
     private static $_instance = null;
@@ -140,29 +140,44 @@ class Disciple_Tools_Chatwoot_Tab_General {
         $token = Disciple_Tools_Chatwoot_Menu::instance()->token;
         $this->process_form_fields( $token );
 
-        $my_plugin_option = get_option( $token . '_my_plugin_option' );
+        $chatwoot_url = get_option( $token . '_url' );
+        $chatwoot_api_key = get_option( $token . '_api_key' );
         ?>
         <form method="post">
             <?php wp_nonce_field( 'dt_admin_form', 'dt_admin_form_nonce' ) ?>
             <table class="widefat striped">
                 <thead>
                 <tr>
-                    <th>Settings</th>
+                    <th>Chatwoot Settings</th>
                     <th></th>
                 </tr>
                 </thead>
                 <tbody>
                 <tr>
                     <td>
-                        My Plugin Option
+                        <label for="chatwoot-url">Chatwoot URL</label>
                     </td>
                     <td>
-                        <input type="text" name="my-plugin-option" placeholder="" value="<?php echo esc_attr( $my_plugin_option ) ?>">
+                        <input type="url" id="chatwoot-url" name="chatwoot-url" placeholder="https://your-chatwoot-instance.com" value="<?php echo esc_attr( $chatwoot_url ) ?>" style="width: 100%; max-width: 400px;">
+                        <p class="description">Enter your Chatwoot instance URL (e.g., https://your-chatwoot-instance.com)</p>
                     </td>
                 </tr>
                 <tr>
                     <td>
-                        <button class="button">Save</button>
+                        <label for="chatwoot-api-key">Chatwoot API Key</label>
+                    </td>
+                    <td>
+                        <input type="password" id="chatwoot-api-key" name="chatwoot-api-key" placeholder="<?php echo !empty($chatwoot_api_key) ? 'API key is set' : 'Enter your API key'; ?>" value="" style="width: 100%; max-width: 400px;">
+                        <?php if ( !empty( $chatwoot_api_key ) ): ?>
+                            <p class="description" style="color: #46b450;">✓ API key is configured</p>
+                        <?php else: ?>
+                            <p class="description">Enter your Chatwoot API key from your account settings</p>
+                        <?php endif; ?>
+                    </td>
+                </tr>
+                <tr>
+                    <td>
+                        <button class="button button-primary">Save Settings</button>
                     </td>
                     <td></td>
                 </tr>
@@ -179,9 +194,16 @@ class Disciple_Tools_Chatwoot_Tab_General {
 
             $post_vars = dt_recursive_sanitize_array( $_POST );
 
-            if ( isset( $post_vars['my-plugin-option'] ) ) {
-                update_option( $token . '_my_plugin_option', $post_vars['my-plugin-option'] );
+            if ( isset( $post_vars['chatwoot-url'] ) ) {
+                $chatwoot_url = esc_url_raw( $post_vars['chatwoot-url'] );
+                update_option( $token . '_url', $chatwoot_url );
             }
+
+            if ( isset( $post_vars['chatwoot-api-key'] ) && !empty( $post_vars['chatwoot-api-key'] ) ) {
+                update_option( $token . '_api_key', sanitize_text_field( $post_vars['chatwoot-api-key'] ) );
+            }
+
+            echo '<div class="notice notice-success"><p>Settings saved successfully!</p></div>';
         }
     }
 
