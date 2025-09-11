@@ -357,14 +357,22 @@ class Disciple_Tools_Chatwoot_Tab_General {
         }
 
         // Create custom attributes
-        $contact_id_result = $this->create_custom_attribute( $chatwoot_url, $chatwoot_api_key, $account_id, 'contact_id', 'number', 'Contact ID' );
+        $contact_id_result = $this->create_custom_attribute( $chatwoot_url, $chatwoot_api_key, $account_id, 'dt_contact_id', 'number', 'Contact ID' );
         if ( $contact_id_result !== true ) {
             return 'Failed to create contact_id custom attribute: ' . $contact_id_result;
         }
 
-        $contact_url_result = $this->create_custom_attribute( $chatwoot_url, $chatwoot_api_key, $account_id, 'contact_url', 'link', 'Contact URL' );
+        $contact_url_result = $this->create_custom_attribute( $chatwoot_url, $chatwoot_api_key, $account_id, 'dt_contact_url', 'link', 'Contact URL' );
         if ( $contact_url_result !== true ) {
             return 'Failed to create contact_url custom attribute: ' . $contact_url_result;
+        }
+        $conversation_id_result = $this->create_custom_attribute( $chatwoot_url, $chatwoot_api_key, $account_id, 'dt_conversation_id', 'number', 'Conversation ID' );
+        if ( $conversation_id_result !== true ) {
+            return 'Failed to create conversation_id custom attribute: ' . $conversation_id_result;
+        }
+        $conversation_url_result = $this->create_custom_attribute( $chatwoot_url, $chatwoot_api_key, $account_id, 'dt_conversation_url', 'link', 'Conversation URL' );
+        if ( $conversation_url_result !== true ) {
+            return 'Failed to create conversation_url custom attribute: ' . $conversation_url_result;
         }
 
         // Save integration setup status

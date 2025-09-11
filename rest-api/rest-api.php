@@ -41,6 +41,8 @@ class Disciple_Tools_Chatwoot_Endpoints
 
         $event = $params['event'];
 
+        $params = $this->format_params( $params );
+
         switch ( $event ) {
             case 'message_created':
                 $this->handle_message_created( $params );
@@ -59,6 +61,76 @@ class Disciple_Tools_Chatwoot_Endpoints
 
 
     /**
+     * Standardize webhook data into a predictable array format.
+     * Converts different webhook types (macro.executed, message_created) into consistent structure.
+     * @param array $params Raw webhook parameters
+     * @return array Standardized parameters with sender, account, inbox, conversation data
+     */
+
+    public function format_params( $params ) {
+
+        $formatted_params = [
+            'event' => $params['event'] ?? null,
+            'sender' => null,
+            'sender_name' => null,
+            'sender_email' => null,
+            'sender_phone' => null,
+            'sender_facebook' => null,
+            'account_id' => null,
+            'inbox_id' => null,
+            'conversation_id' => null,
+            'last_message' => null,
+            'dt_contact_id' => null,
+            'dt_contact_url' => null,
+            'dt_conversation_id' => null,
+            'dt_conversation_url' => null,
+            'trigger' => null,
+            'labels' => null,
+        ];
+
+        // macro.executed format
+        if ( isset( $params['meta']['sender'] ) ) {
+            $sender = $params['meta']['sender'];
+            $formatted_params['sender'] = $sender;
+            $formatted_params['sender_name'] = $sender['name'] ?? null;
+            $formatted_params['sender_email'] = $sender['email'] ?? null;
+            $formatted_params['sender_phone'] = $sender['phone_number'] ?? null;
+            $formatted_params['sender_facebook'] = $sender['additional_attributes']['social_profiles']['facebook'] ?? null;
+            $formatted_params['inbox_id'] = $params['inbox_id'] ?? null;
+            $formatted_params['conversation_id'] = $params['id'] ?? null;
+            $formatted_params['account_id'] = $params['messages'][0]['account_id'] ?? null;
+            $formatted_params['last_message'] = $params['messages'][0] ?? null;
+            $formatted_params['dt_contact_id'] = $sender['custom_attributes']['contact_id'] ?? null;
+            $formatted_params['dt_contact_url'] = $sender['custom_attributes']['contact_url'] ?? null;
+            $formatted_params['dt_conversation_id'] = $sender['custom_attributes']['conversation_id'] ?? null;
+            $formatted_params['dt_conversation_url'] = $sender['custom_attributes']['conversation_url'] ?? null;
+            $formatted_params['trigger'] = $params['trigger'] ?? null;
+        }
+        // message_created format  
+        elseif ( isset( $params['conversation']['meta']['sender'] ) ) {
+            $sender = $params['conversation']['meta']['sender'];
+            $formatted_params['sender'] = $sender;
+            $formatted_params['sender_name'] = $sender['name'] ?? null;
+            $formatted_params['sender_email'] = $sender['email'] ?? null;
+            $formatted_params['sender_phone'] = $sender['phone_number'] ?? null;
+            $formatted_params['sender_facebook'] = $sender['additional_attributes']['social_profiles']['facebook'] ?? null;
+            $formatted_params['account_id'] = $params['account']['id'] ?? null;
+            $formatted_params['inbox_id'] = $params['inbox']['id'] ?? null;
+            $formatted_params['conversation_id'] = $params['conversation']['id'] ?? null;
+            $formatted_params['last_message'] = $params['conversation']['messages'][0] ?? null;
+            $formatted_params['dt_contact_id'] = $sender['custom_attributes']['contact_id'] ?? null;
+            $formatted_params['dt_contact_url'] = $sender['custom_attributes']['contact_url'] ?? null;
+            $formatted_params['dt_conversation_id'] = $sender['custom_attributes']['conversation_id'] ?? null;
+            $formatted_params['dt_conversation_url'] = $sender['custom_attributes']['conversation_url'] ?? null;
+            $formatted_params['labels'] = $params['conversation']['labels'] ?? null;
+        }
+
+        return $formatted_params;
+    }
+
+
+
+    /**
      * Handle macro executed event. The macro is used when declaring that a contact is ready for D.T in chatwoot.
      * @param array $params
      * @return void
@@ -69,27 +141,16 @@ class Disciple_Tools_Chatwoot_Endpoints
             return;
         }
 
-        $sender = $params['meta']['sender'];
-        $inbox_id = $params['inbox_id'];
-        $account_id = '';
-        $conversation_id = $params['id'];
-        
-        if ( !empty( $params['messages'][0]['account_id'] ) ){
-            $account_id = $params['messages'][0]['account_id'];
-        } else {
-            return;
-        }
-
         //@todo handle the case when the contact is already created in D.T
-        if ( !empty( $sender['custom_attributes']['contact_id'] ) ){
+        if ( !empty( $params['dt_contact_id'] ) ){
             return;
         }
 
-        return $this->create_contact( $sender, $account_id, $inbox_id, $conversation_id );
+        return $this->create_contact( $params );
     }
 
     private function handle_message_created( $params ) {
-        $labels = $params['conversation']['labels'];
+        $labels = $params['labels'];
 
         //if `dt_sync` label present
         if ( empty( $labels ) || !in_array( 'dt-sync', $labels ) ){
@@ -97,14 +158,13 @@ class Disciple_Tools_Chatwoot_Endpoints
         }
 
         // Check if contact ID exists in Chatwoot custom attributes
-        $sender = $params['conversation']['meta']['sender'];
-        if ( empty( $sender['custom_attributes']['contact_id'] ) ) {
+        if ( empty( $params['dt_contact_id'] ) ) {
             // No D.T contact ID found, don't create new contact
             dt_write_log( 'No contact_id found in Chatwoot custom attributes, skipping message sync' );
             return;
         }
 
-        $contact_id = (int) $sender['custom_attributes']['contact_id'];
+        $contact_id = (int) $params['dt_contact_id'];
 
         // Verify the contact exists in D.T
         $contact = DT_Posts::get_post( 'contacts', $contact_id, false, false );
@@ -114,22 +174,13 @@ class Disciple_Tools_Chatwoot_Endpoints
         }
 
         // Add the new message as a comment
-        $this->add_message_to_contact( $contact_id, $params['conversation']['messages'][0] );
+        $this->add_message_to_contact( $contact_id, $params['last_message'] );
 
         return true;
     }
 
     private function handle_conversation_updated( $params ) {
-        //dt-sync label applied
-        $dt_sync_label_applied = false;
-        foreach ( $params['changed_attributes'] as $attribute ) {
-            if ( isset( $attribute['label_list'] ) && in_array( 'dt-sync', $attribute['label_list']['current_value'] ) && !in_array( 'dt-sync', $attribute['label_list']['previous_value'] ) ){
-                $dt_sync_label_applied = true;
-            }
-        }
-        if ( $dt_sync_label_applied ) {
-            // $this->handle_message_created( $params );
-        }
+        return true;
     }
 
     private function get_full_conversation( $account_id, $conversation_id ) {
@@ -178,28 +229,29 @@ class Disciple_Tools_Chatwoot_Endpoints
         return $messages['payload'];
     }
 
-    private function create_contact( $sender, $account_id, $inbox_id, $conversation_id = '' ) {
+    private function create_contact( $params ) {
+
         $contact_fields = [
-            'title' => $sender['name'],
+            'title' => $params['sender_name'],
         ];
-        if ( !empty( $sender['email'] ) ){
+        if ( !empty( $params['sender_email'] ) ){
             $contact_fields['contact_email'] = [
                 'values' => [
-                    ['value' => $sender['email']]
+                    ['value' => $params['sender_email']]
                 ]
             ];
         }
-        if ( !empty( $sender['phone'] ) ){
+        if ( !empty( $params['sender_phone'] ) ){
             $contact_fields['contact_phone'] = [
                 'values' => [
-                    ['value' => $sender['phone']]
+                    ['value' => $params['sender_phone']]
                 ]
             ];
         }
-        if ( !empty( $sender['additional_attributes']['social_profiles']['facebook'] ) ){
+        if ( !empty( $params['sender_facebook'] ) ){
             $contact_fields['contact_facebook'] = [
                 'values' => [
-                    ['value' => $sender['additional_attributes']['social_profiles']['facebook']]
+                    ['value' => $params['sender_facebook']]
                 ]
             ];
         }
@@ -213,9 +265,9 @@ class Disciple_Tools_Chatwoot_Endpoints
         $contact_id = $contact['ID'];
         $contact_url = $contact['permalink'];
 
-        $this->set_contact_dt_link( $contact_id, $contact_url, $account_id, $inbox_id, $sender['id'] );
+        $this->set_contact_dt_link( $contact_id, $contact_url, $params );
 
-        $full_conversation = $this->get_full_conversation( $account_id, $conversation_id );
+        $full_conversation = $this->get_full_conversation( $params['account_id'], $params['conversation_id'] );
         if ( empty( $full_conversation ) ){
             return;
         }
@@ -224,7 +276,7 @@ class Disciple_Tools_Chatwoot_Endpoints
         return $full_conversation;
     }
 
-    private function set_contact_dt_link( $contact_id, $contact_url, $account_id, $conversation_id, $chatwoot_contact_id ) {
+    private function set_contact_dt_link( $contact_id, $contact_url, $params) {
         //set the D.T contact id and url in chatwoot
         $chatwoot_url = $this->get_chatwoot_url();
         if ( empty( $chatwoot_url ) ){
@@ -239,12 +291,12 @@ class Disciple_Tools_Chatwoot_Endpoints
         }
 
         // Update contact with custom attributes
-        $api_url = $chatwoot_url . '/api/v1/accounts/' . $account_id . '/contacts/' . $chatwoot_contact_id;
+        $api_url = $chatwoot_url . '/api/v1/accounts/' . $params['account_id'] . '/contacts/' . $params['sender']['id'];
         
         $data = array(
             'custom_attributes' => array(
-                'contact_id' => (int) $contact_id,
-                'contact_url' => $contact_url
+                'dt_contact_id' => (int) $contact_id,
+                'dt_contact_url' => $contact_url
             )
         );
 
