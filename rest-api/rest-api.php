@@ -96,66 +96,26 @@ class Disciple_Tools_Chatwoot_Endpoints
             return;
         }
 
-
-        $massage_type = $params['message_type']; //incomding or outgoing
-
-        $name = $params['conversation']['meta']['sender']['name'];
-        $email = $params['conversation']['meta']['sender']['email'];
-        $phone = $params['conversation']['meta']['sender']['phone_number'];
-        $facebook = '';
-        if ( isset( $params['conversation']['meta']['sender']['additional_attributes']['social_profiles']['facebook'] ) ){
-            $facebook = $params['conversation']['meta']['sender']['additional_attributes']['social_profiles']['facebook'];
-        }
-        $chatwoot_conversation_id = $params['conversation']['id'];
-        $inbox_id = $params['inbox']['id'];
-        $inbox_name = $params['inbox']['name'];
-        $account_id = $params['account']['id'];
-        $account_name = $params['account']['name'];
-        $conversations_link = $this->get_chatwoot_url() . '/app/accounts/' . $account_id . '/conversations/' . $chatwoot_conversation_id;
-
-
-
-        $contact_fields = [
-            'title' => $name,
-        ];
-        if ( !empty( $email ) ){
-            $contact_fields['contact_email'] = [
-                'values' => [
-                    ['value' => $email]
-                ]
-            ];
-        }
-        if ( !empty( $phone ) ){
-            $contact_fields['contact_phone'] = [
-                'values' => [
-                    ['value' => $phone]
-                ]
-            ];
-        }
-        if ( !empty( $facebook ) ){
-            $contact_fields['contact_facebook'] = [
-                'values' => [
-                    ['value' => $facebook]
-                ]
-            ];
-        }
-
-
-        //find or create contact
-        $contact = DT_Posts::create_post( 'contacts', $contact_fields, true, false );
-        if ( is_wp_error( $contact ) ){
-            dt_write_log( $contact );
+        // Check if contact ID exists in Chatwoot custom attributes
+        $sender = $params['conversation']['meta']['sender'];
+        if ( empty( $sender['custom_attributes']['contact_id'] ) ) {
+            // No D.T contact ID found, don't create new contact
+            dt_write_log( 'No contact_id found in Chatwoot custom attributes, skipping message sync' );
             return;
         }
-        $contact_id = $contact['ID'];
 
-        //get full conversation from chatwoot
-        $conversation_messages = $this->get_full_conversation( $account_id, $chatwoot_conversation_id );
-        //@todo save messages to contact comments
+        $contact_id = (int) $sender['custom_attributes']['contact_id'];
 
+        // Verify the contact exists in D.T
+        $contact = DT_Posts::get_post( 'contacts', $contact_id, false, false );
+        if ( is_wp_error( $contact ) || empty( $contact ) ) {
+            dt_write_log( 'Contact ID ' . $contact_id . ' not found in D.T, skipping message sync' );
+            return;
+        }
 
-        //set D.T link on chatwoot conv
-        //set D.T contact id
+        // Add the new message as a comment
+        $this->add_message_to_contact( $contact_id, $params['conversation']['messages'][0] );
+
         return true;
     }
 
@@ -320,37 +280,47 @@ class Disciple_Tools_Chatwoot_Endpoints
             return;
         }
 
+        $saved_count = 0;
         foreach ( $conversation_messages as $message ) {
-            // Skip if not a valid message
-            if ( empty( $message['content'] ) || empty( $message['created_at'] ) ) {
-                continue;
-            }
-            $message_type = isset( $message['message_type'] ) ? $message['message_type'] : -1;
-            if ( $message_type !== 0 && $message_type !== 1 ){
-                continue;
-            }
-
-
-            $sender_name = isset( $message['sender']['name'] ) ? $message['sender']['name'] : 'Chatwoot';
-            $message_time = gmdate( 'Y-m-d H:i:s', $message['created_at'] );
-
-            // Create comment on D.T contact
-            $result = DT_Posts::add_post_comment( 
-                'contacts', 
-                $contact_id, 
-                $$message['content'], 
-                'chatwoot', 
-                ['comment_date' => $message_time, 'comment_author' => $sender_name], 
-                false, 
-                true 
-            );
-            
-            if ( is_wp_error( $result ) ) {
-                dt_write_log( 'Failed to add comment to contact ' . $contact_id . ': ' . $result->get_error_message() );
+            if ( $this->add_message_to_contact( $contact_id, $message ) ) {
+                $saved_count++;
             }
         }
 
-        dt_write_log( 'Successfully saved ' . count( $conversation_messages ) . ' messages to contact: ' . $contact_id );
+        dt_write_log( 'Successfully saved ' . $saved_count . ' messages to contact: ' . $contact_id );
+    }
+
+    private function add_message_to_contact( $contact_id, $message_params ) {
+        // Skip if not a valid message
+        if ( empty( $message_params['content'] ) || empty( $message_params['created_at'] ) ) {
+            return false;
+        }
+        
+        $message_type = isset( $message_params['message_type'] ) ? $message_params['message_type'] : -1;
+        if ( $message_type !== 0 && $message_type !== 1 ) {
+            return false;
+        }
+
+        $sender_name = isset( $message_params['sender']['name'] ) ? $message_params['sender']['name'] : 'Chatwoot';
+        $message_time = gmdate( 'Y-m-d H:i:s', $message_params['created_at'] );
+
+        // Create comment on D.T contact (matching save_messages_to_contact pattern)
+        $result = DT_Posts::add_post_comment( 
+            'contacts', 
+            $contact_id, 
+            $message_params['content'], 
+            'chatwoot', 
+            ['comment_date' => $message_time, 'comment_author' => $sender_name], 
+            false, 
+            true 
+        );
+        
+        if ( is_wp_error( $result ) ) {
+            dt_write_log( 'Failed to add comment to contact ' . $contact_id . ': ' . $result->get_error_message() );
+            return false;
+        }
+
+        return true;
     }
 }
 new Disciple_Tools_Chatwoot_Endpoints();
