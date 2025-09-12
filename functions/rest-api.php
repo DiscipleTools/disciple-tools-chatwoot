@@ -159,62 +159,59 @@ class Disciple_Tools_Chatwoot_Endpoints
         if ( empty($params['trigger'] ) ){
             return;
         }
-
-        //@todo handle the case when the contact is already created in D.T
-        if ( !empty( $params['dt_contact_id'] ) ){
-            return;
-        }
-
-        $contact = $this->create_contact( $params );
-        if ( is_wp_error( $contact ) ){
-            dt_write_log( $contact );
-            return;
-        }
-
-        $contact_id = $contact['ID'];
-        $contact_url = $contact['permalink'];
-        Disciple_Tools_Chatwoot_API::set_contact_attributes( 
-            ['dt_contact_id' => $contact_id, 'dt_contact_url' => $contact_url], 
-            $params['account_id'], 
-            $params['sender']['id'] 
-        );
-
         if ( !class_exists( 'Disciple_Tools_Chatwoot_API' ) ){
             dt_write_log( 'Disciple_Tools_Chatwoot_API class not found' );
             return;
         }
 
-        
-        $full_conversation = Disciple_Tools_Chatwoot_API::get_full_conversation( $params['account_id'], $params['conversation_id'] );
-        if ( empty( $full_conversation ) ){
-            return;
+        $contact_id = $params['dt_contact_id'];
+
+        if ( empty( $contact_id ) ){
+            $contact = $this->create_contact( $params );
+            if ( is_wp_error( $contact ) ){
+                dt_write_log( $contact );
+                return;
+            }
+    
+            $contact_id = $contact['ID'];
+            $contact_url = $contact['permalink'];
+            Disciple_Tools_Chatwoot_API::set_contact_attributes( 
+                ['dt_contact_id' => $contact_id, 'dt_contact_url' => $contact_url], 
+                $params['account_id'], 
+                $params['sender']['id'] 
+            );
         }
 
-        // Use conversation type determined in format_params
-        $conversation_type = $params['conversation_type'] ?? 'chatwoot';
-        dt_write_log( 'Using conversation type: ' . $conversation_type );
-        
-        $handle = 'chatwoot_' . $params['account_id'] . '_' . $params['conversation_id'];
-        $dt_conversation = DT_Conversations_API::create_or_update_conversation_record(
-            $handle,
-            [
-                'type' => $conversation_type,
-                'status' => 'verified',
-            ],
-            $contact_id 
-        );
-        if ( is_wp_error( $dt_conversation ) ){
-            dt_write_log( $dt_conversation );
-            return;
+        if ( empty( $params['dt_conversation_id'] ) ){
+            $full_conversation = Disciple_Tools_Chatwoot_API::get_full_conversation( $params['account_id'], $params['conversation_id'] );
+            if ( empty( $full_conversation ) ){
+                return;
+            }
+    
+            $conversation_type = $params['conversation_type'] ?? 'chatwoot';
+            dt_write_log( 'Using conversation type: ' . $conversation_type );
+            
+            $handle = 'chatwoot_' . $params['account_id'] . '_' . $params['conversation_id'];
+            $dt_conversation = DT_Conversations_API::create_or_update_conversation_record(
+                $handle,
+                [
+                    'type' => $conversation_type,
+                    'status' => 'verified',
+                ],
+                $contact_id 
+            );
+            if ( is_wp_error( $dt_conversation ) ){
+                dt_write_log( $dt_conversation );
+                return;
+            }
+            $this->save_messages_to_conversation( $dt_conversation['ID'], $full_conversation, $conversation_type );
+    
+            Disciple_Tools_Chatwoot_API::set_conversation_attributes( 
+                ['dt_conversation_id' => $dt_conversation['ID'], 'dt_conversation_url' => $dt_conversation['permalink']], 
+                $params['account_id'], 
+                $params['conversation_id'] 
+            );
         }
-        $this->save_messages_to_conversation( $dt_conversation['ID'], $full_conversation, $conversation_type );
-
-        Disciple_Tools_Chatwoot_API::set_conversation_attributes( 
-            ['dt_conversation_id' => $dt_conversation['ID'], 'dt_conversation_url' => $dt_conversation['permalink']], 
-            $params['account_id'], 
-            $params['conversation_id'] 
-        );
-
         return true;
     }
 

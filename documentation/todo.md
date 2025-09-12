@@ -1,2 +1,2 @@
 - [ ] change the webhook from dt-public to use api key authentication
-- 
+- [ ] listen for chatwoot contact updates for new contact info (email, phone, etc)
