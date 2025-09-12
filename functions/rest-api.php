@@ -72,6 +72,8 @@ class Disciple_Tools_Chatwoot_Endpoints
             'account_id' => null,
             'inbox_id' => null,
             'conversation_id' => null,
+            'channel' => null,
+            'conversation_type' => null,
             'last_message' => null,
             'dt_contact_id' => null,
             'dt_contact_url' => null,
@@ -91,12 +93,14 @@ class Disciple_Tools_Chatwoot_Endpoints
             $formatted_params['sender_facebook'] = $sender['additional_attributes']['social_profiles']['facebook'] ?? null;
             $formatted_params['inbox_id'] = $params['inbox_id'] ?? null;
             $formatted_params['conversation_id'] = $params['id'] ?? null;
+            $formatted_params['channel'] = $params['channel'] ?? null;
             $formatted_params['account_id'] = $params['messages'][0]['account_id'] ?? null;
             $formatted_params['last_message'] = $params['messages'][0] ?? null;
             $formatted_params['dt_contact_id'] = $sender['custom_attributes']['dt_contact_id'] ?? null;
             $formatted_params['dt_contact_url'] = $sender['custom_attributes']['dt_contact_url'] ?? null;
             $formatted_params['dt_conversation_id'] = $params['custom_attributes']['dt_conversation_id'] ?? null;
             $formatted_params['dt_conversation_url'] = $params['custom_attributes']['dt_conversation_url'] ?? null;
+            $formatted_params['conversation_type'] = $this->get_dt_conversation_type( $formatted_params['channel'] );
             $formatted_params['trigger'] = $params['trigger'] ?? null;
         }
         // message_created format  
@@ -110,18 +114,40 @@ class Disciple_Tools_Chatwoot_Endpoints
             $formatted_params['account_id'] = $params['account']['id'] ?? null;
             $formatted_params['inbox_id'] = $params['inbox']['id'] ?? null;
             $formatted_params['conversation_id'] = $params['conversation']['id'] ?? null;
+            $formatted_params['channel'] = $params['conversation']['channel'] ?? null;
             $formatted_params['last_message'] = $params['conversation']['messages'][0] ?? null;
             $formatted_params['dt_contact_id'] = $sender['custom_attributes']['dt_contact_id'] ?? null;
             $formatted_params['dt_contact_url'] = $sender['custom_attributes']['dt_contact_url'] ?? null;
             $formatted_params['dt_conversation_id'] = $params['conversation']['custom_attributes']['dt_conversation_id'] ?? null;
             $formatted_params['dt_conversation_url'] = $params['conversation']['custom_attributes']['dt_conversation_url'] ?? null;
+            $formatted_params['conversation_type'] = $this->get_dt_conversation_type( $formatted_params['channel'] );
             $formatted_params['labels'] = $params['conversation']['labels'] ?? null;
         }
 
         return $formatted_params;
     }
 
+    /**
+     * Map Chatwoot channel type to DT conversation type
+     * @param string $channel_type Chatwoot channel type
+     * @return string DT conversation type
+     */
+    private function get_dt_conversation_type( $channel_type ) {
+        $type_mapping = [
+            'Channel::Email' => 'email',
+            'Channel::WebWidget' => 'web_chat',
+            'Channel::Api' => 'web_chat',
+            'Channel::Sms' => 'sms', 
+            'Channel::FacebookPage' => 'facebook',
+            'Channel::InstagramDirectMessage' => 'instagram',
+            'Channel::Whatsapp' => 'whatsapp',
+            'Channel::TelegramBot' => 'telegram',
+            'Channel::Line' => 'line',
+            'Channel::TwitterProfile' => 'twitter'
+        ];
 
+        return $type_mapping[$channel_type] ?? 'chatwoot';
+    }
 
     /**
      * Handle macro executed event. The macro is used when declaring that a contact is ready for D.T in chatwoot.
@@ -153,17 +179,26 @@ class Disciple_Tools_Chatwoot_Endpoints
             $params['sender']['id'] 
         );
 
+        if ( !class_exists( 'Disciple_Tools_Chatwoot_API' ) ){
+            dt_write_log( 'Disciple_Tools_Chatwoot_API class not found' );
+            return;
+        }
+
         
         $full_conversation = Disciple_Tools_Chatwoot_API::get_full_conversation( $params['account_id'], $params['conversation_id'] );
         if ( empty( $full_conversation ) ){
             return;
         }
+
+        // Use conversation type determined in format_params
+        $conversation_type = $params['conversation_type'] ?? 'chatwoot';
+        dt_write_log( 'Using conversation type: ' . $conversation_type );
         
         $handle = 'chatwoot_' . $params['account_id'] . '_' . $params['conversation_id'];
         $dt_conversation = DT_Conversations_API::create_or_update_conversation_record(
             $handle,
             [
-                'type' => 'chatwoot',
+                'type' => $conversation_type,
             ],
             $contact_id 
         );
@@ -171,7 +206,7 @@ class Disciple_Tools_Chatwoot_Endpoints
             dt_write_log( $dt_conversation );
             return;
         }
-        $this->save_messages_to_conversation( $dt_conversation['ID'], $full_conversation );
+        $this->save_messages_to_conversation( $dt_conversation['ID'], $full_conversation, $conversation_type );
 
         Disciple_Tools_Chatwoot_API::set_conversation_attributes( 
             ['dt_conversation_id' => $dt_conversation['ID'], 'dt_conversation_url' => $dt_conversation['permalink']], 
@@ -199,8 +234,7 @@ class Disciple_Tools_Chatwoot_Endpoints
             return;
         }
 
-        // Add the new message as a comment
-        $this->add_message_to_conversation( $dt_conversation_id, $params['last_message'] );
+        $this->add_message_to_conversation( $dt_conversation_id, $params['last_message'], $params['conversation_type'] );
 
         return true;
     }
@@ -237,12 +271,12 @@ class Disciple_Tools_Chatwoot_Endpoints
             ];
         }
 
-        //find or create contact
+        //@todo handle the case when the contact is already created in D.T
         return DT_Posts::create_post( 'contacts', $contact_fields, true, false );
     }
 
 
-    private function save_messages_to_conversation( $conversation_id, $conversation_messages ) {
+    private function save_messages_to_conversation( $conversation_id, $conversation_messages, $conversation_type = 'chatwoot' ) {
         if ( empty( $conversation_messages ) || !is_array( $conversation_messages ) ) {
             dt_write_log( 'No messages to save for contact: ' . $conversation_id );
             return;
@@ -251,7 +285,7 @@ class Disciple_Tools_Chatwoot_Endpoints
 
         $saved_count = 0;
         foreach ( $conversation_messages as $message ) {
-            if ( $this->add_message_to_conversation( $conversation_id, $message ) ) {
+            if ( $this->add_message_to_conversation( $conversation_id, $message, $conversation_type ) ) {
                 $saved_count++;
             }
         }
@@ -259,7 +293,7 @@ class Disciple_Tools_Chatwoot_Endpoints
         dt_write_log( 'Successfully saved ' . $saved_count . ' messages to conversation: ' . $conversation_id );
     }
 
-    private function add_message_to_conversation( $dt_conversation_id, $message_params ) {
+    private function add_message_to_conversation( $dt_conversation_id, $message_params, $conversation_type = 'chatwoot' ) {
         // Skip if not a valid message
         if ( empty( $message_params['content'] ) || empty( $message_params['created_at'] ) ) {
             return false;
@@ -273,12 +307,12 @@ class Disciple_Tools_Chatwoot_Endpoints
         $sender_name = isset( $message_params['sender']['name'] ) ? $message_params['sender']['name'] : 'Chatwoot';
         $message_time = gmdate( 'Y-m-d H:i:s', $message_params['created_at'] );
 
-        // Create comment on D.T conversation
+        // Create comment on D.T conversation with the appropriate type
         $result = DT_Posts::add_post_comment( 
             'conversations', 
             $dt_conversation_id, 
             $message_params['content'], 
-            'chatwoot', 
+            $conversation_type, 
             ['comment_date' => $message_time, 'comment_author' => $sender_name], 
             false, 
             true 

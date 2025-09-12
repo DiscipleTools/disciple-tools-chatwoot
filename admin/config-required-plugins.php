@@ -39,6 +39,15 @@ add_action( 'tgmpa_register', function() {
      * If the source is NOT from the .org repo, then source is also required.
      */
     $plugins = [];
+    
+    // Required D.T plugin
+    $plugins[] = [
+        'name' => 'Disciple.Tools Conversations',
+        'slug' => 'disciple-tools-conversations',
+        'source' => 'https://github.com/DiscipleTools/disciple-tools-conversations/releases/latest/download/disciple-tools-conversations.zip',
+        'required' => true
+    ];
+
     // a wordpress plugin:
     //    $plugins[] = [
     //            'name'                  => 'iThemes Security',

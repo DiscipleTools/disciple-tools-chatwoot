@@ -90,13 +90,15 @@ class Disciple_Tools_Chatwoot {
 
         if ( $is_rest && strpos( dt_get_url_path(), 'disciple-tools-chatwoot' ) !== false ) {
         }
-        require_once( 'rest-api/rest-api.php' ); // adds starter rest api class
-        require_once( 'rest-api/chatwoot-api.php' ); // adds starter rest api class
+        require_once( 'functions/rest-api.php' ); // adds starter rest api class
+        require_once( 'functions/chatwoot-api.php' ); // adds starter rest api class
+        require_once( 'functions/conversations-setup.php' ); // adds additional conversation types for Chatwoot
 
         require_once( 'site-link/custom-site-to-site-links.php' ); // add site to site link class and capabilities
 
         if ( is_admin() ) {
             require_once( 'admin/admin-menu-and-tabs.php' ); // adds starter admin page and section for plugin
+            require_once( 'admin/config-required-plugins.php' ); // adds required plugin dependencies
         }
 
         $this->i18n();
