@@ -199,6 +199,7 @@ class Disciple_Tools_Chatwoot_Endpoints
             $handle,
             [
                 'type' => $conversation_type,
+                'status' => 'verified',
             ],
             $contact_id 
         );
@@ -248,6 +249,7 @@ class Disciple_Tools_Chatwoot_Endpoints
 
         $contact_fields = [
             'title' => $params['sender_name'],
+            'overall_status' => 'unassigned'
         ];
         if ( !empty( $params['sender_email'] ) ){
             $contact_fields['contact_email'] = [
@@ -271,8 +273,7 @@ class Disciple_Tools_Chatwoot_Endpoints
             ];
         }
 
-        //@todo handle the case when the contact is already created in D.T
-        return DT_Posts::create_post( 'contacts', $contact_fields, true, false );
+        return DT_Posts::create_post( 'contacts', $contact_fields, true, false, [ 'check_for_duplicates' => [ 'contact_email', 'contact_phone', 'contact_facebook' ] ] );
     }
 
 
