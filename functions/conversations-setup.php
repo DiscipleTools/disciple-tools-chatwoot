@@ -15,7 +15,7 @@ class Disciple_Tools_Chatwoot_Conversations_Setup {
      */
     public function dt_custom_fields_settings( $fields, $post_type ) {
         if ( $post_type === 'conversations' && isset( $fields['type'] ) ) {
-            
+
             // Add additional conversation types for Chatwoot channels
             $additional_types = [
                 'web_chat' => [

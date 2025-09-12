@@ -103,7 +103,7 @@ class Disciple_Tools_Chatwoot_Endpoints
             $formatted_params['conversation_type'] = $this->get_dt_conversation_type( $formatted_params['channel'] );
             $formatted_params['trigger'] = $params['trigger'] ?? null;
         }
-        // message_created format  
+        // message_created format
         elseif ( isset( $params['conversation']['meta']['sender'] ) ) {
             $sender = $params['conversation']['meta']['sender'];
             $formatted_params['sender'] = $sender;
@@ -137,7 +137,7 @@ class Disciple_Tools_Chatwoot_Endpoints
             'Channel::Email' => 'email',
             'Channel::WebWidget' => 'web_chat',
             'Channel::Api' => 'web_chat',
-            'Channel::Sms' => 'sms', 
+            'Channel::Sms' => 'sms',
             'Channel::FacebookPage' => 'facebook',
             'Channel::InstagramDirectMessage' => 'instagram',
             'Channel::Whatsapp' => 'whatsapp',
@@ -156,7 +156,7 @@ class Disciple_Tools_Chatwoot_Endpoints
      */
     private function handle_macro_executed( $params ) {
         //check if the trigger param is set.
-        if ( empty($params['trigger'] ) ){
+        if ( empty( $params['trigger'] ) ){
             return;
         }
         if ( !class_exists( 'Disciple_Tools_Chatwoot_API' ) ){
@@ -172,13 +172,13 @@ class Disciple_Tools_Chatwoot_Endpoints
                 dt_write_log( $contact );
                 return;
             }
-    
+
             $contact_id = $contact['ID'];
             $contact_url = $contact['permalink'];
-            Disciple_Tools_Chatwoot_API::set_contact_attributes( 
-                ['dt_contact_id' => $contact_id, 'dt_contact_url' => $contact_url], 
-                $params['account_id'], 
-                $params['sender']['id'] 
+            Disciple_Tools_Chatwoot_API::set_contact_attributes(
+                [ 'dt_contact_id' => $contact_id, 'dt_contact_url' => $contact_url ],
+                $params['account_id'],
+                $params['sender']['id']
             );
         }
 
@@ -187,10 +187,10 @@ class Disciple_Tools_Chatwoot_Endpoints
             if ( empty( $full_conversation ) ){
                 return;
             }
-    
+
             $conversation_type = $params['conversation_type'] ?? 'chatwoot';
             dt_write_log( 'Using conversation type: ' . $conversation_type );
-            
+
             $handle = 'chatwoot_' . $params['account_id'] . '_' . $params['conversation_id'];
             $dt_conversation = DT_Conversations_API::create_or_update_conversation_record(
                 $handle,
@@ -198,18 +198,18 @@ class Disciple_Tools_Chatwoot_Endpoints
                     'type' => $conversation_type,
                     'status' => 'verified',
                 ],
-                $contact_id 
+                $contact_id
             );
             if ( is_wp_error( $dt_conversation ) ){
                 dt_write_log( $dt_conversation );
                 return;
             }
             $this->save_messages_to_conversation( $dt_conversation['ID'], $full_conversation, $conversation_type );
-    
-            Disciple_Tools_Chatwoot_API::set_conversation_attributes( 
-                ['dt_conversation_id' => $dt_conversation['ID'], 'dt_conversation_url' => $dt_conversation['permalink']], 
-                $params['account_id'], 
-                $params['conversation_id'] 
+
+            Disciple_Tools_Chatwoot_API::set_conversation_attributes(
+                [ 'dt_conversation_id' => $dt_conversation['ID'], 'dt_conversation_url' => $dt_conversation['permalink'] ],
+                $params['account_id'],
+                $params['conversation_id']
             );
         }
         return true;
@@ -226,7 +226,7 @@ class Disciple_Tools_Chatwoot_Endpoints
         // Verify the conversation exists in D.T
         $handle = 'chatwoot_' . $params['account_id'] . '_' . $params['conversation_id'];
         $exists = DT_Conversations_API::find_record_by_handle( $handle, true );
-        
+
         if ( is_wp_error( $exists ) || empty( $exists ) ) {
             dt_write_log( 'Conversation ID ' . $dt_conversation_id . ' not found in D.T, skipping message sync' );
             return;
@@ -251,21 +251,21 @@ class Disciple_Tools_Chatwoot_Endpoints
         if ( !empty( $params['sender_email'] ) ){
             $contact_fields['contact_email'] = [
                 'values' => [
-                    ['value' => $params['sender_email']]
+                    [ 'value' => $params['sender_email'] ]
                 ]
             ];
         }
         if ( !empty( $params['sender_phone'] ) ){
             $contact_fields['contact_phone'] = [
                 'values' => [
-                    ['value' => $params['sender_phone']]
+                    [ 'value' => $params['sender_phone'] ]
                 ]
             ];
         }
         if ( !empty( $params['sender_facebook'] ) ){
             $contact_fields['contact_facebook'] = [
                 'values' => [
-                    ['value' => $params['sender_facebook']]
+                    [ 'value' => $params['sender_facebook'] ]
                 ]
             ];
         }
@@ -296,7 +296,7 @@ class Disciple_Tools_Chatwoot_Endpoints
         if ( empty( $message_params['content'] ) || empty( $message_params['created_at'] ) ) {
             return false;
         }
-        
+
         $message_type = isset( $message_params['message_type'] ) ? $message_params['message_type'] : -1;
         if ( $message_type !== 0 && $message_type !== 1 ) {
             return false;
@@ -306,16 +306,16 @@ class Disciple_Tools_Chatwoot_Endpoints
         $message_time = gmdate( 'Y-m-d H:i:s', $message_params['created_at'] );
 
         // Create comment on D.T conversation with the appropriate type
-        $result = DT_Posts::add_post_comment( 
-            'conversations', 
-            $dt_conversation_id, 
-            $message_params['content'], 
-            $conversation_type, 
-            ['comment_date' => $message_time, 'comment_author' => $sender_name], 
-            false, 
-            true 
+        $result = DT_Posts::add_post_comment(
+            'conversations',
+            $dt_conversation_id,
+            $message_params['content'],
+            $conversation_type,
+            [ 'comment_date' => $message_time, 'comment_author' => $sender_name ],
+            false,
+            true
         );
-        
+
         if ( is_wp_error( $result ) ) {
             dt_write_log( 'Failed to add comment to conversation ' . $dt_conversation_id . ': ' . $result->get_error_message() );
             return false;

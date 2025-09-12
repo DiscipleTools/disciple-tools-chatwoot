@@ -86,11 +86,7 @@ class Disciple_Tools_Chatwoot {
     }
 
     private function __construct() {
-        $is_rest = dt_is_rest();
-
-        if ( $is_rest && strpos( dt_get_url_path(), 'disciple-tools-chatwoot' ) !== false ) {
-        }
-        require_once( 'functions/rest-api.php' ); // adds starter rest api class
+        require_once( 'functions/chatwoot-rest-api.php' ); // adds starter rest api class
         require_once( 'functions/chatwoot-api.php' ); // adds starter rest api class
         require_once( 'functions/conversations-setup.php' ); // adds additional conversation types for Chatwoot
 
@@ -106,7 +102,6 @@ class Disciple_Tools_Chatwoot {
         if ( is_admin() ) { // adds links to the plugin description area in the plugin admin list.
             add_filter( 'plugin_row_meta', [ $this, 'plugin_description_links' ], 10, 4 );
         }
-
     }
 
     /**
@@ -269,20 +264,20 @@ if ( !function_exists( 'dt_hook_ajax_notice_handler' ) ){
  * @see https://github.com/DiscipleTools/disciple-tools-version-control/wiki/How-to-Update-the-Starter-Plugin
  */
 add_action( 'plugins_loaded', function (){
-   if ( is_admin() && !( is_multisite() && class_exists( "DT_Multisite" ) ) || wp_doing_cron() ){
-       // Check for plugin updates
-       if ( ! class_exists( 'Puc_v4_Factory' ) ) {
-           if ( file_exists( get_template_directory() . '/dt-core/libraries/plugin-update-checker/plugin-update-checker.php' )){
-               require( get_template_directory() . '/dt-core/libraries/plugin-update-checker/plugin-update-checker.php' );
-           }
-       }
-       if ( class_exists( 'Puc_v4_Factory' ) ){
-           Puc_v4_Factory::buildUpdateChecker(
-               'https://raw.githubusercontent.com/DiscipleTools/disciple-tools-chatwoot/master/version-control.json',
-               __FILE__,
-               'disciple-tools-chatwoot'
-           );
+    if ( ( is_admin() || wp_doing_cron() ) && !( is_multisite() && class_exists( 'DT_Multisite' ) ) ){
+        // Check for plugin updates
+        if ( ! class_exists( 'Puc_v4_Factory' ) ) {
+            if ( file_exists( get_template_directory() . '/dt-core/libraries/plugin-update-checker/plugin-update-checker.php' ) ){
+                require( get_template_directory() . '/dt-core/libraries/plugin-update-checker/plugin-update-checker.php' );
+            }
+        }
+        if ( class_exists( 'Puc_v4_Factory' ) ){
+            Puc_v4_Factory::buildUpdateChecker(
+                'https://raw.githubusercontent.com/DiscipleTools/disciple-tools-chatwoot/master/version-control.json',
+                __FILE__,
+                'disciple-tools-chatwoot'
+            );
 
-       }
-   }
+        }
+    }
 } );

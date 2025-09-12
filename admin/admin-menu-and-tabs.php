@@ -168,10 +168,10 @@ class Disciple_Tools_Chatwoot_Tab_General {
                         <label for="chatwoot-api-key">Chatwoot API Key</label>
                     </td>
                     <td>
-                        <input type="password" id="chatwoot-api-key" name="chatwoot-api-key" placeholder="<?php echo !empty($chatwoot_api_key) ? 'API key is set' : 'Enter your API key'; ?>" value="" style="width: 100%; max-width: 400px;">
+                        <input type="password" id="chatwoot-api-key" name="chatwoot-api-key" placeholder="<?php echo !empty( $chatwoot_api_key ) ? 'API key is set' : 'Enter your API key'; ?>" value="" style="width: 100%; max-width: 400px;">
                         <?php if ( !empty( $chatwoot_api_key ) ): ?>
                             <p class="description" style="color: #46b450;">✓ API key is configured</p>
-                        <?php else: ?>
+                        <?php else : ?>
                             <p class="description">Enter your Chatwoot API key from your account settings</p>
                         <?php endif; ?>
                     </td>
@@ -228,7 +228,7 @@ class Disciple_Tools_Chatwoot_Tab_General {
                                 </div>
                                 <p style="margin: 0; color: #155724; font-size: 14px;">Your Chatwoot instance is connected and synchronized</p>
                             </div>
-                        <?php else: ?>
+                        <?php else : ?>
                             <div style="background: #fff3cd; border: 1px solid #ffeaa7; border-radius: 4px; padding: 15px; margin-bottom: 15px;">
                                 <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 8px;">
                                     <span style="color: #856404; font-weight: 500; font-size: 16px;">⚠️ Setup Required</span>
@@ -383,7 +383,7 @@ class Disciple_Tools_Chatwoot_Tab_General {
 
     private function get_account_id( $chatwoot_url, $api_key ) {
         $api_url = $chatwoot_url . '/api/v1/profile';
-        
+
         $response = wp_remote_get( $api_url, array(
             'headers' => array(
                 'Content-Type' => 'application/json',
@@ -422,7 +422,7 @@ class Disciple_Tools_Chatwoot_Tab_General {
 
     private function create_label( $chatwoot_url, $api_key, $account_id ) {
         $api_url = $chatwoot_url . '/api/v1/accounts/' . $account_id . '/labels';
-        
+
         $data = array(
             'title' => 'dt-sync',
             'description' => 'Sync conversation with Disciple.Tools',
@@ -449,7 +449,7 @@ class Disciple_Tools_Chatwoot_Tab_General {
 
         $body = wp_remote_retrieve_body( $response );
         $error_data = json_decode( $body, true );
-        
+
         // If label already exists, that's OK
         if ( $response_code === 422 && strpos( $body, 'already been taken' ) !== false ) {
             return true;
@@ -466,18 +466,18 @@ class Disciple_Tools_Chatwoot_Tab_General {
 
         $api_url = $chatwoot_url . '/api/v1/accounts/' . $account_id . '/macros';
         $webhook_url = rest_url( 'dt-public/chatwoot/v1/sync' ) . '?trigger=true';
-        
+
         $data = array(
             'name' => 'Sync with D.T',
             'visibility' => 'global',
             'actions' => array(
                 array(
                     'action_name' => 'add_label',
-                    'action_params' => array('dt-sync')
+                    'action_params' => array( 'dt-sync' )
                 ),
                 array(
                     'action_name' => 'send_webhook_event',
-                    'action_params' => array($webhook_url)
+                    'action_params' => array( $webhook_url )
                 )
             )
         );
@@ -508,7 +508,7 @@ class Disciple_Tools_Chatwoot_Tab_General {
 
     private function dt_sync_macro_exists( $chatwoot_url, $api_key, $account_id ) {
         $api_url = $chatwoot_url . '/api/v1/accounts/' . $account_id . '/macros';
-        
+
         $response = wp_remote_get( $api_url, array(
             'headers' => array(
                 'Content-Type' => 'application/json',
@@ -560,9 +560,9 @@ class Disciple_Tools_Chatwoot_Tab_General {
 
     private function create_webhook( $chatwoot_url, $api_key, $account_id ) {
         $api_url = $chatwoot_url . '/api/v1/accounts/' . $account_id . '/webhooks';
-        
+
         $webhook_url = rest_url( 'dt-public/chatwoot/v1/sync' );
-        
+
         $data = array(
             'url' => $webhook_url,
             'subscriptions' => array(
@@ -595,7 +595,7 @@ class Disciple_Tools_Chatwoot_Tab_General {
 
         $body = wp_remote_retrieve_body( $response );
         $error_data = json_decode( $body, true );
-        
+
         // If webhook already exists, that's OK
         if ( $response_code === 422 && strpos( $body, 'already been taken' ) !== false ) {
             return true;
@@ -606,7 +606,7 @@ class Disciple_Tools_Chatwoot_Tab_General {
 
     private function create_custom_attribute( $chatwoot_url, $api_key, $account_id, $attribute_key, $attribute_type, $attribute_display_name ) {
         $api_url = $chatwoot_url . '/api/v1/accounts/' . $account_id . '/custom_attribute_definitions';
-        
+
         $data = array(
             'attribute_display_name' => $attribute_display_name,
             'attribute_key' => $attribute_key,
@@ -634,7 +634,7 @@ class Disciple_Tools_Chatwoot_Tab_General {
 
         $body = wp_remote_retrieve_body( $response );
         $error_data = json_decode( $body, true );
-        
+
         // If custom attribute already exists, that's OK
         if ( $response_code === 422 && strpos( $body, 'already been taken' ) !== false ) {
             return true;
@@ -645,7 +645,7 @@ class Disciple_Tools_Chatwoot_Tab_General {
 
     private function create_conversation_custom_attribute( $chatwoot_url, $api_key, $account_id, $attribute_key, $attribute_type, $attribute_display_name ) {
         $api_url = $chatwoot_url . '/api/v1/accounts/' . $account_id . '/custom_attribute_definitions';
-        
+
         $data = array(
             'attribute_display_name' => $attribute_display_name,
             'attribute_key' => $attribute_key,
@@ -673,7 +673,7 @@ class Disciple_Tools_Chatwoot_Tab_General {
 
         $body = wp_remote_retrieve_body( $response );
         $error_data = json_decode( $body, true );
-        
+
         // If custom attribute already exists, that's OK
         if ( $response_code === 422 && strpos( $body, 'already been taken' ) !== false ) {
             return true;

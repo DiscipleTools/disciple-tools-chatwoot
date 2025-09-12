@@ -6,7 +6,7 @@ class Disciple_Tools_Chatwoot_API
     private static function get_chatwoot_url() {
         return get_option( 'dt_chatwoot_url', '' );
     }
-    
+
     private static function get_chatwoot_api_key() {
         return get_option( 'dt_chatwoot_api_key', '' );
     }
@@ -17,7 +17,7 @@ class Disciple_Tools_Chatwoot_API
             dt_write_log( 'Chatwoot URL is not set' );
             return false;
         }
-        
+
         $chatwoot_api_key = self::get_chatwoot_api_key();
         if ( empty( $chatwoot_api_key ) ){
             dt_write_log( 'Chatwoot API key is not set' );
@@ -25,7 +25,7 @@ class Disciple_Tools_Chatwoot_API
         }
 
         $api_url = $chatwoot_url . '/api/v1/accounts/' . $account_id . '/contacts/' . $contact_id;
-        
+
         $data = array(
             'custom_attributes' => $attributes
         );
@@ -62,7 +62,7 @@ class Disciple_Tools_Chatwoot_API
             dt_write_log( 'Chatwoot URL is not set' );
             return false;
         }
-        
+
         $chatwoot_api_key = self::get_chatwoot_api_key();
         if ( empty( $chatwoot_api_key ) ){
             dt_write_log( 'Chatwoot API key is not set' );
@@ -70,7 +70,7 @@ class Disciple_Tools_Chatwoot_API
         }
 
         $api_url = $chatwoot_url . '/api/v1/accounts/' . $account_id . '/conversations/' . $conversation_id . '/custom_attributes';
-        
+
         $data = array(
             'custom_attributes' => $attributes
         );
@@ -107,9 +107,9 @@ class Disciple_Tools_Chatwoot_API
             dt_write_log( 'Chatwoot URL is not set' );
             return false;
         }
-        
+
         $api_url = $chatwoot_url . '/api/v1/accounts/' . $account_id . '/conversations/' . $conversation_id . '/messages';
-        
+
         $chatwoot_api_token = self::get_chatwoot_api_key();
         if ( empty( $chatwoot_api_token ) ){
             dt_write_log( 'Chatwoot API token is not set' );

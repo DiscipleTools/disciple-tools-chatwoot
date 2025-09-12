@@ -39,7 +39,7 @@ add_action( 'tgmpa_register', function() {
      * If the source is NOT from the .org repo, then source is also required.
      */
     $plugins = [];
-    
+
     // Required D.T plugin
     $plugins[] = [
         'name' => 'Disciple.Tools Conversations',
