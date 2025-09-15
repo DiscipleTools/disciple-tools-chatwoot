@@ -189,7 +189,7 @@ class Disciple_Tools_Chatwoot_Tab_General {
                             $users = get_users( array( 'role__in' => array( 'dispatcher', 'strategist', 'multiplier', 'marketer' ) ) );
                             foreach ( $users as $user ) {
                                 $selected = ( $default_assigned_user == $user->ID ) ? 'selected' : '';
-                                echo '<option value="' . esc_attr( $user->ID ) . '" ' . $selected . '>' . esc_html( $user->display_name ) . ' (' . esc_html( $user->user_email ) . ')</option>';
+                                echo '<option value="' . esc_attr( $user->ID ) . '" ' . esc_attr( $selected ) . '>' . esc_html( $user->display_name ) . ' (' . esc_html( $user->user_email ) . ')</option>';
                             }
                             ?>
                         </select>
