@@ -23,7 +23,7 @@ jobs:
       - name: Build project
         run: |
           mkdir disciple-tools-chatwoot
-          cp -r disciple-tools-chatwoot.php admin charts languages magic-link post-type rest-api site-link tile workflows spinner.svg version-control.json LICENSE SECURITY.md disciple-tools-chatwoot/
+          cp -r disciple-tools-chatwoot.php admin languages functions site-link version-control.json LICENSE SECURITY.md disciple-tools-chatwoot/
           zip -r disciple-tools-chatwoot.zip disciple-tools-chatwoot
       - name: Create Release
         id: create_release
