@@ -1,49 +1,47 @@
 ![Build Status](https://github.com/DiscipleTools/disciple-tools-chatwoot/actions/workflows/ci.yml/badge.svg?branch=master)
-## Dev notes, delete me:
-This is a starter plugin to jumpstart your work with Disciple.Tools.
-Click the "Use this template" button above.
-See instructions for refactoring and getting started in the [wiki](https://github.com/DiscipleTools/disciple-tools-chatwoot/wiki)
-See instructions for creating releases and publishing your plugin: [wiki](https://github.com/DiscipleTools/disciple-tools-chatwoot/wiki)
-In order to display the banner correctly on the Disciple.Tools Community Plugins Site, don't change the 'Plugin Banner' text on line 12; only the URL.
-
-## readme format:
 
 ![Plugin Banner](https://raw.githubusercontent.com/DiscipleTools/disciple-tools-chatwoot/master/documentation/banner.png)
 
 # Disciple.Tools - Chatwoot
 
-Description Description Description Description Description Description Description
-Description Description Description Description Description Description Description
+This plugin brings conversations from Chatwoot into Disciple.Tools so you can follow up with people.
 
-## Purpose
+## What It Does
 
-Purpose purpose purpose purpose purpose purpose purpose purpose purpose purpose purpose
-Purpose purpose purpose purpose purpose purpose purpose purpose purpose purpose purpose
+When someone talks to you through Chatwoot (like chat, email, or social media), this plugin automatically:
 
-Purpose purpose purpose purpose purpose purpose purpose purpose purpose purpose purpose
-Purpose purpose purpose purpose purpose purpose purpose purpose purpose purpose purpose
+- Creates a contact in Disciple.Tools for that person
+- Shows you all their messages in one place
+- Lets you see the conversation history
+- Helps you follow up with them for discipleship
 
-## Usage
+## Why Use This?
 
-#### Will Do
+Many people start conversations through chat or email. This plugin helps you:
 
-- Item
-- Item
-- Item
+- Keep the bulk of conversations in Chatwoot
+- Sync to D.T only the contacts you need to follow-up with
+- Take advantage of D.T's collobartion to follow-up with the contacts
 
-#### Will Not Do
+## How It Works
 
-- Item
-- Item
+1. Someone sends you a message on Chatwoot
+2. The Chatwoot Digital Responder continuen the conversations on Chatwoot
+3. When ready the Digital Responder send the contact and coversation to Disciple.Tools
+4. You can follow up with discipleship and relationship building
 
-## Requirements
+## What You Need
 
-- Disciple.Tools Theme installed on a Wordpress Server
+- Disciple.Tools installed on your website
+- A Chatwoot account
+- Admin access to both
 
-## Installing
+## How to Install
 
-- Install as a standard Disciple.Tools/Wordpress plugin in the system Admin/Plugins area.
-- Requires the user role of Administrator.
+1. Download this plugin and install it like any WordPress plugin
+2. Go to your Disciple.Tools settings and connect it to your Chatwoot account
+3. That's it! The plugin will start bringing conversations over automatically
+
 
 ## Contribution
 
@@ -54,7 +52,3 @@ code contributions are welcome using the [Pull Request](https://github.com/Disci
 system for git. For a more details on contribution see the
 [contribution guidelines](https://github.com/DiscipleTools/disciple-tools-chatwoot/blob/master/CONTRIBUTING.md).
 
-
-## Screenshots
-
-![screenshot](documentation/community/starter-banners/banner-blue-green.png)

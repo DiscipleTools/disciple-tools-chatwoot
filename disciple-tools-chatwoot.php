@@ -2,7 +2,7 @@
 /**
  * Plugin Name: Disciple.Tools - Chatwoot
  * Plugin URI: https://github.com/DiscipleTools/disciple-tools-chatwoot
- * Description: Disciple.Tools - Chatwoot is intended to help developers and integrator jumpstart their extension of the Disciple.Tools system.
+ * Description: Integrates Chatwoot chat platform with Disciple.Tools for seamless conversation management.
  * Text Domain: disciple-tools-chatwoot
  * Domain Path: /languages
  * Version:  0.1
