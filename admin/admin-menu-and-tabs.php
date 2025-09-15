@@ -140,9 +140,11 @@ class Disciple_Tools_Chatwoot_Tab_General {
         $token = Disciple_Tools_Chatwoot_Menu::instance()->token;
         $this->process_form_fields( $token );
 
-        $chatwoot_url = get_option( $token . '_url' );
-        $chatwoot_api_key = get_option( $token . '_api_key' );
-        $integration_setup = get_option( $token . '_integration_setup', false );
+        $settings = get_option( $token, array() );
+        $chatwoot_url = isset( $settings['url'] ) ? $settings['url'] : '';
+        $chatwoot_api_key = isset( $settings['api_key'] ) ? $settings['api_key'] : '';
+        $default_assigned_user = isset( $settings['default_assigned_user'] ) ? $settings['default_assigned_user'] : '';
+        $integration_setup = isset( $settings['integration_setup'] ) ? $settings['integration_setup'] : false;
         ?>
         <form method="post">
             <?php wp_nonce_field( 'dt_admin_form', 'dt_admin_form_nonce' ) ?>
@@ -174,6 +176,24 @@ class Disciple_Tools_Chatwoot_Tab_General {
                         <?php else : ?>
                             <p class="description">Enter your Chatwoot API key from your account settings</p>
                         <?php endif; ?>
+                    </td>
+                </tr>
+                <tr>
+                    <td>
+                        <label for="default-assigned-user">Default Assigned User</label>
+                    </td>
+                    <td>
+                        <select id="default-assigned-user" name="default-assigned-user" style="width: 100%; max-width: 400px;">
+                            <option value="">Select a user...</option>
+                            <?php
+                            $users = get_users( array( 'role__in' => array( 'dispatcher', 'strategist', 'multiplier', 'marketer' ) ) );
+                            foreach ( $users as $user ) {
+                                $selected = ( $default_assigned_user == $user->ID ) ? 'selected' : '';
+                                echo '<option value="' . esc_attr( $user->ID ) . '" ' . $selected . '>' . esc_html( $user->display_name ) . ' (' . esc_html( $user->user_email ) . ')</option>';
+                            }
+                            ?>
+                        </select>
+                        <p class="description">Select the default user to assign new contacts created from Chatwoot conversations</p>
                     </td>
                 </tr>
                 <tr>
@@ -216,7 +236,7 @@ class Disciple_Tools_Chatwoot_Tab_General {
                                     cursor: pointer;
                                 " onmouseover="this.style.background='#5a6268'" 
                                    onmouseout="this.style.background='#6c757d'">
-                                    ⚙️ Reconfigure
+                                    ⚙️ Re-run configuration
                                 </button>
                             <?php endif; ?>
                         </div>
@@ -239,14 +259,14 @@ class Disciple_Tools_Chatwoot_Tab_General {
                         
                         <div style="background: #f8f9fa; border-radius: 4px; padding: 15px; margin-bottom: <?php echo $integration_setup ? '0' : '20px'; ?>;">
                             <p style="margin: 0 0 10px 0; font-weight: 500; color: #495057;">
-                                <?php echo $integration_setup ? 'Configured Components:' : 'Components to be created:'; ?>
+                              This integration sets up labels, webhooks, macros, and custom attributes in your Chatwoot instance: 
                             </p>
                             <ul style="margin: 0; padding-left: 20px; color: #6c757d;">
                                 <li style="margin-bottom: 5px;">
                                     <strong>"dt-sync" label</strong> - Marks conversations for synchronization
                                 </li>
                                 <li style="margin-bottom: 5px;">
-                                    <strong>"Sync with D.T" macro</strong> - One-click labeling for agents
+                                    <strong>"Sync with D.T" macro</strong> - Applies the "dt-sync" label and creates the contact in Disciple.Tools
                                 </li>
                                 <li style="margin-bottom: 5px;">
                                     <strong>Webhook</strong> - Real-time message synchronization
@@ -254,8 +274,14 @@ class Disciple_Tools_Chatwoot_Tab_General {
                                 <li style="margin-bottom: 5px;">
                                     <strong>Contact ID attribute</strong> - Stores Disciple.Tools contact ID
                                 </li>
-                                <li style="margin-bottom: 0;">
+                                <li style="margin-bottom: 5px;">
                                     <strong>Contact URL attribute</strong> - Links to Disciple.Tools contact
+                                </li>
+                                <li style="margin-bottom: 5px;">
+                                    <strong>Conversation ID attribute</strong> - Stores Disciple.Tools conversation ID
+                                </li>
+                                <li style="margin-bottom: 0;">
+                                    <strong>Conversation URL attribute</strong> - Links to Disciple.Tools conversation
                                 </li>
                             </ul>
                         </div>
@@ -301,15 +327,21 @@ class Disciple_Tools_Chatwoot_Tab_General {
             wp_verify_nonce( sanitize_key( wp_unslash( $_POST['dt_admin_form_nonce'] ) ), 'dt_admin_form' ) ) {
 
             $post_vars = dt_recursive_sanitize_array( $_POST );
+            $settings = get_option( $token, array() );
 
             if ( isset( $post_vars['chatwoot-url'] ) ) {
-                $chatwoot_url = esc_url_raw( $post_vars['chatwoot-url'] );
-                update_option( $token . '_url', $chatwoot_url );
+                $settings['url'] = esc_url_raw( $post_vars['chatwoot-url'] );
             }
 
             if ( isset( $post_vars['chatwoot-api-key'] ) && !empty( $post_vars['chatwoot-api-key'] ) ) {
-                update_option( $token . '_api_key', sanitize_text_field( $post_vars['chatwoot-api-key'] ) );
+                $settings['api_key'] = sanitize_text_field( $post_vars['chatwoot-api-key'] );
             }
+
+            if ( isset( $post_vars['default-assigned-user'] ) ) {
+                $settings['default_assigned_user'] = sanitize_text_field( $post_vars['default-assigned-user'] );
+            }
+
+            update_option( $token, $settings );
 
             if ( isset( $post_vars['enable-integration'] ) && $post_vars['enable-integration'] == '1' ) {
                 $result = $this->setup_chatwoot_integration( $token );
@@ -325,8 +357,9 @@ class Disciple_Tools_Chatwoot_Tab_General {
     }
 
     private function setup_chatwoot_integration( $token ) {
-        $chatwoot_url = get_option( $token . '_url' );
-        $chatwoot_api_key = get_option( $token . '_api_key' );
+        $settings = get_option( $token, array() );
+        $chatwoot_url = isset( $settings['url'] ) ? $settings['url'] : '';
+        $chatwoot_api_key = isset( $settings['api_key'] ) ? $settings['api_key'] : '';
 
         if ( empty( $chatwoot_url ) || empty( $chatwoot_api_key ) ) {
             return 'Missing Chatwoot URL or API key';
@@ -376,7 +409,8 @@ class Disciple_Tools_Chatwoot_Tab_General {
         }
 
         // Save integration setup status
-        update_option( $token . '_integration_setup', true );
+        $settings['integration_setup'] = true;
+        update_option( $token, $settings );
 
         return true;
     }
@@ -680,6 +714,11 @@ class Disciple_Tools_Chatwoot_Tab_General {
         }
 
         return 'HTTP ' . $response_code . ': ' . ( isset( $error_data['message'] ) ? $error_data['message'] : $body );
+    }
+
+    public static function get_default_assigned_user() {
+        $settings = get_option( 'dt_chatwoot', array() );
+        return isset( $settings['default_assigned_user'] ) ? $settings['default_assigned_user'] : '';
     }
 
     public function right_column() {

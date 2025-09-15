@@ -4,11 +4,13 @@ if ( !defined( 'ABSPATH' ) ) { exit; } // Exit if accessed directly.
 class Disciple_Tools_Chatwoot_API
 {
     private static function get_chatwoot_url() {
-        return get_option( 'dt_chatwoot_url', '' );
+        $settings = get_option( 'dt_chatwoot', array() );
+        return isset( $settings['url'] ) ? $settings['url'] : '';
     }
 
     private static function get_chatwoot_api_key() {
-        return get_option( 'dt_chatwoot_api_key', '' );
+        $settings = get_option( 'dt_chatwoot', array() );
+        return isset( $settings['api_key'] ) ? $settings['api_key'] : '';
     }
 
     public static function set_contact_attributes( $attributes, $account_id, $contact_id ) {
