@@ -1,4 +1,4 @@
-# Copyright (C) 2022 
+# Copyright (C) 2025 
 # This file is distributed under the same license as the Disciple.Tools - Chatwoot plugin.
 msgid ""
 msgstr ""
@@ -9,290 +9,36 @@ msgstr ""
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
-"POT-Creation-Date: 2022-10-27T10:12:56+00:00\n"
+"POT-Creation-Date: 2025-09-15T13:42:11+00:00\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
-"X-Generator: WP-CLI 2.7.1\n"
+"X-Generator: WP-CLI 2.12.0\n"
 "X-Domain: disciple-tools-chatwoot\n"
 
-#: charts/one-page-chart-template.php:68
-msgid "Sample API Call"
+#. Description of the plugin
+#: disciple-tools-chatwoot.php
+msgid "Integrates Chatwoot chat platform with Disciple.Tools for seamless conversation management."
 msgstr ""
 
-#: magic-link/magic-link-map.php:99
-#: magic-link/magic-link-non-object.php:117
-#: magic-link/magic-link-user-app.php:167
-#: magic-link/post-type-magic-link/magic-link-post-type.php:102
-msgid "Add Magic"
+#: functions/conversations-setup.php:22
+msgid "Web Chat"
 msgstr ""
 
-#: magic-link/post-type-magic-link/magic-link-post-type.php:128
-msgid "Magic Url"
+#: functions/conversations-setup.php:23
+msgid "Web widget conversation"
 msgstr ""
 
-#: post-type/loader.php:22
-#: post-type/module-base.php:63
-#: post-type/module-base.php:79
-msgid "Starter"
+#: functions/conversations-setup.php:26
+msgid "WhatsApp"
 msgstr ""
 
-#: post-type/loader.php:27
-msgid "Default starter functionality"
+#: functions/conversations-setup.php:27
+msgid "WhatsApp conversation"
 msgstr ""
 
-#: post-type/module-base.php:64
-#: post-type/module-base.php:80
-msgid "Starters"
+#: functions/conversations-setup.php:30
+msgid "Instagram"
 msgstr ""
 
-#: post-type/module-base.php:95
-msgid "Multiplier"
-msgstr ""
-
-#: post-type/module-base.php:137
-msgid "Status"
-msgstr ""
-
-#: post-type/module-base.php:138
-msgid "Set the current status."
-msgstr ""
-
-#: post-type/module-base.php:142
-msgid "Inactive"
-msgstr ""
-
-#: post-type/module-base.php:143
-msgid "No longer active."
-msgstr ""
-
-#: post-type/module-base.php:147
-msgid "Active"
-msgstr ""
-
-#: post-type/module-base.php:148
-msgid "Is active."
-msgstr ""
-
-#: post-type/module-base.php:158
-msgid "Assigned To"
-msgstr ""
-
-#: post-type/module-base.php:159
-msgid "Select the main person who is responsible for reporting on this record."
-msgstr ""
-
-#: post-type/module-base.php:173
-msgid "Start Date"
-msgstr ""
-
-#: post-type/module-base.php:181
-msgid "End Date"
-msgstr ""
-
-#: post-type/module-base.php:189
-msgid "Multi-Select"
-msgstr ""
-
-#: post-type/module-base.php:190
-msgid "Multi Select Field"
-msgstr ""
-
-#: post-type/module-base.php:194
-msgid "Item 1"
-msgstr ""
-
-#: post-type/module-base.php:195
-msgid "Item 1."
-msgstr ""
-
-#: post-type/module-base.php:198
-msgid "Item 2"
-msgstr ""
-
-#: post-type/module-base.php:199
-msgid "Item 2."
-msgstr ""
-
-#: post-type/module-base.php:202
-msgid "Item 3"
-msgstr ""
-
-#: post-type/module-base.php:203
-msgid "Item 3."
-msgstr ""
-
-#: post-type/module-base.php:217
-#: post-type/module-base.php:226
-msgid "Locations"
-msgstr ""
-
-#: post-type/module-base.php:218
-msgid "The general location where this contact is located."
-msgstr ""
-
-#: post-type/module-base.php:227
-msgid "The general location where this record is located."
-msgstr ""
-
-#: post-type/module-base.php:235
-msgid "Address"
-msgstr ""
-
-#: post-type/module-base.php:258
-msgid "Parents"
-msgstr ""
-
-#: post-type/module-base.php:269
-msgid "Peers"
-msgstr ""
-
-#: post-type/module-base.php:280
-msgid "Children"
-msgstr ""
-
-#: post-type/module-base.php:297
-msgid "People Groups"
-msgstr ""
-
-#: post-type/module-base.php:298
-msgid "The people groups connected to this record."
-msgstr ""
-
-#: post-type/module-base.php:308
-msgid "Contacts"
-msgstr ""
-
-#: post-type/module-base.php:365
-msgid "Connections"
-msgstr ""
-
-#: post-type/module-base.php:366
-msgid "Other"
-msgstr ""
-
-#: post-type/module-base.php:383
-msgid "Custom Section Contact"
-msgstr ""
-
-#: post-type/module-base.php:539
-msgid "Assigned to me"
-msgstr ""
-
-#: post-type/module-base.php:547
-#: post-type/module-base.php:604
-#: post-type/module-base.php:612
-msgid "All"
-msgstr ""
-
-#: tile/custom-tile.php:32
-msgid "Chatwoot"
-msgstr ""
-
-#: tile/custom-tile.php:33
-msgid "A Beautiful Tile"
-msgstr ""
-
-#: tile/custom-tile.php:63
-#: tile/custom-tile.php:132
-#: tile/custom-tile.php:138
-msgid "Text"
-msgstr ""
-
-#: tile/custom-tile.php:64
-msgctxt "Optional Documentation"
-msgid "Text"
-msgstr ""
-
-#: tile/custom-tile.php:74
-msgid "Multiselect"
-msgstr ""
-
-#: tile/custom-tile.php:76
-msgid "One"
-msgstr ""
-
-#: tile/custom-tile.php:77
-msgid "Two"
-msgstr ""
-
-#: tile/custom-tile.php:78
-msgid "Three"
-msgstr ""
-
-#: tile/custom-tile.php:79
-msgid "Four"
-msgstr ""
-
-#: tile/custom-tile.php:95
-msgctxt "Key Select Label"
-msgid "First"
-msgstr ""
-
-#: tile/custom-tile.php:96
-msgctxt "Training Status field description"
-msgid "First Key Description"
-msgstr ""
-
-#: tile/custom-tile.php:100
-msgctxt "Key Select Label"
-msgid "Second"
-msgstr ""
-
-#: tile/custom-tile.php:101
-msgctxt "Training Status field description"
-msgid "Second Key Description"
-msgstr ""
-
-#: tile/custom-tile.php:105
-msgctxt "Key Select Label"
-msgid "Third"
-msgstr ""
-
-#: tile/custom-tile.php:106
-msgctxt "Training Status field description"
-msgid "Third Key Description"
-msgstr ""
-
-#: tile/custom-tile.php:117
-msgid "Number field"
-msgstr ""
-
-#: tile/custom-tile.php:124
-msgid "Number field private"
-msgstr ""
-
-#: tile/custom-tile.php:145
-msgid "Communication Channel"
-msgstr ""
-
-#: tile/custom-tile.php:152
-msgid "User Select"
-msgstr ""
-
-#: tile/custom-tile.php:157
-msgid "Array"
-msgstr ""
-
-#: tile/custom-tile.php:167
-#: tile/custom-tile.php:174
-msgid " Date Field"
-msgstr ""
-
-#: tile/custom-tile.php:182
-#: tile/custom-tile.php:187
-msgid "Boolean"
-msgstr ""
-
-#: tile/settings-tile.php:43
-#: tile/settings-tile.php:61
-msgid "Custom Settings Section"
-msgstr ""
-
-#: tile/settings-tile.php:77
-msgctxt "Optional Documentation"
-msgid "Custom Settings Section"
-msgstr ""
-
-#: tile/settings-tile.php:78
-msgctxt "Optional Documentation"
-msgid "Add your own help information into this modal."
+#: functions/conversations-setup.php:31
+msgid "Instagram Direct Message conversation"
 msgstr ""
