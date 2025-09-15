@@ -244,10 +244,16 @@ class Disciple_Tools_Chatwoot_Endpoints
 
     private function create_contact( $params ) {
 
+        $assigned_to = Disciple_Tools_Chatwoot_API::get_default_assigned_user();
+
         $contact_fields = [
             'title' => $params['sender_name'],
             'overall_status' => 'unassigned'
         ];
+        if ( !empty( $assigned_to ) ){
+            $contact_fields['assigned_to'] = $assigned_to;
+        }
+
         if ( !empty( $params['sender_email'] ) ){
             $contact_fields['contact_email'] = [
                 'values' => [

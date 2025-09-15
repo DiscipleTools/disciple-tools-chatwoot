@@ -13,6 +13,11 @@ class Disciple_Tools_Chatwoot_API
         return isset( $settings['api_key'] ) ? $settings['api_key'] : '';
     }
 
+    public static function get_default_assigned_user() {
+        $settings = get_option( 'dt_chatwoot', array() );
+        return isset( $settings['default_assigned_user'] ) ? $settings['default_assigned_user'] : '';
+    }
+
     public static function set_contact_attributes( $attributes, $account_id, $contact_id ) {
         $chatwoot_url = self::get_chatwoot_url();
         if ( empty( $chatwoot_url ) ){
