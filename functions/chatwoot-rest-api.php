@@ -206,6 +206,8 @@ class Disciple_Tools_Chatwoot_Endpoints
             }
             $this->save_messages_to_conversation( $dt_conversation['ID'], $full_conversation, $conversation_type );
 
+            Disciple_Tools_Chatwoot_AI::summarize( $full_conversation, $dt_conversation['ID'] );
+
             Disciple_Tools_Chatwoot_API::set_conversation_attributes(
                 [ 'dt_conversation_id' => $dt_conversation['ID'], 'dt_conversation_url' => $dt_conversation['permalink'] ],
                 $params['account_id'],

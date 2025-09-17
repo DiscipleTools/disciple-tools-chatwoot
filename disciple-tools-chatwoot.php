@@ -89,6 +89,7 @@ class Disciple_Tools_Chatwoot {
         require_once( 'functions/chatwoot-rest-api.php' ); // adds starter rest api class
         require_once( 'functions/chatwoot-api.php' ); // adds starter rest api class
         require_once( 'functions/conversations-setup.php' ); // adds additional conversation types for Chatwoot
+        require_once( 'functions/chatwoot-ai-features.php' ); // adds AI features for Chatwoot
 
         require_once( 'site-link/custom-site-to-site-links.php' ); // add site to site link class and capabilities
 
