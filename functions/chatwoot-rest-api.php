@@ -71,6 +71,7 @@ class Disciple_Tools_Chatwoot_Endpoints
             'sender_facebook' => null,
             'account_id' => null,
             'inbox_id' => null,
+            'inbox_name' => null,
             'conversation_id' => null,
             'channel' => null,
             'conversation_type' => null,
@@ -113,6 +114,7 @@ class Disciple_Tools_Chatwoot_Endpoints
             $formatted_params['sender_facebook'] = $sender['additional_attributes']['social_profiles']['facebook'] ?? null;
             $formatted_params['account_id'] = $params['account']['id'] ?? null;
             $formatted_params['inbox_id'] = $params['inbox']['id'] ?? null;
+            $formatted_params['inbox_name'] = $params['inbox']['name'] ?? null;
             $formatted_params['conversation_id'] = $params['conversation']['id'] ?? null;
             $formatted_params['channel'] = $params['conversation']['channel'] ?? null;
             $formatted_params['last_message'] = $params['conversation']['messages'][0] ?? null;
@@ -122,6 +124,10 @@ class Disciple_Tools_Chatwoot_Endpoints
             $formatted_params['dt_conversation_url'] = $params['conversation']['custom_attributes']['dt_conversation_url'] ?? null;
             $formatted_params['conversation_type'] = $this->get_dt_conversation_type( $formatted_params['channel'] );
             $formatted_params['labels'] = $params['conversation']['labels'] ?? null;
+        }
+
+        if ( !empty( $formatted_params['account_id'] ) && !empty( $formatted_params['inbox_id'] ) ) {
+            $formatted_params['inbox_name'] = Disciple_Tools_Chatwoot_API::get_inbox_name( $formatted_params['account_id'], $formatted_params['inbox_id'] );
         }
 
         return $formatted_params;
@@ -206,7 +212,15 @@ class Disciple_Tools_Chatwoot_Endpoints
             }
             $this->save_messages_to_conversation( $dt_conversation['ID'], $full_conversation, $conversation_type );
 
-            Disciple_Tools_Chatwoot_AI::summarize( $full_conversation, $dt_conversation['ID'] );
+            $summary = '';
+            $summary_response = Disciple_Tools_Chatwoot_AI::summarize( $full_conversation, $dt_conversation['ID'] );
+            if ( is_wp_error( $summary_response ) ){
+                dt_write_log( $summary_response );
+            } else {
+                $summary = $summary_response['summary'];
+            }
+            //on the contact add a message about this new conversation and the summary
+            $this->add_message_to_contact( $contact_id, $params, $summary );
 
             Disciple_Tools_Chatwoot_API::set_conversation_attributes(
                 [ 'dt_conversation_id' => $dt_conversation['ID'], 'dt_conversation_url' => $dt_conversation['permalink'] ],
@@ -330,6 +344,27 @@ class Disciple_Tools_Chatwoot_Endpoints
         }
 
         return true;
+    }
+
+    private function add_message_to_contact( $contact_id, $params, $summary = '' ) {
+        if ( empty( $contact_id ) ) {
+            return;
+        }
+
+        $inbox_name = isset( $params['inbox_name'] ) ? trim( (string) $params['inbox_name'] ) : '';
+        $inbox_name = $inbox_name !== '' ? wp_strip_all_tags( $inbox_name ) : '';
+
+        $comment_content = sprintf(
+            'New conversation from %s.',
+            $inbox_name !== '' ? $inbox_name : 'Chatwoot'
+        );
+
+        if ( !empty( $summary ) ) {
+            $summary_text = wp_strip_all_tags( $summary );
+            $comment_content .= "\n\n Summary: " . $summary_text;
+        }
+
+        DT_Posts::add_post_comment( 'contacts', (int) $contact_id, $comment_content, 'comment', [], false, false );
     }
 }
 new Disciple_Tools_Chatwoot_Endpoints();

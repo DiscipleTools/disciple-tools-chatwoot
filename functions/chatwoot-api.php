@@ -154,4 +154,70 @@ class Disciple_Tools_Chatwoot_API
 
         return $messages['payload'];
     }
+
+    public static function get_inbox_name( $account_id, $inbox_id ) {
+        if ( empty( $account_id ) || empty( $inbox_id ) ) {
+            return null;
+        }
+
+        $settings = get_option( 'dt_chatwoot', array() );
+        if ( isset( $settings['inbox_names'][ $inbox_id ] ) && !empty( $settings['inbox_names'][ $inbox_id ] ) ) {
+            return $settings['inbox_names'][ $inbox_id ];
+        }
+
+        $chatwoot_url = self::get_chatwoot_url();
+        if ( empty( $chatwoot_url ) ) {
+            dt_write_log( 'Chatwoot URL is not set' );
+            return null;
+        }
+
+        $chatwoot_api_key = self::get_chatwoot_api_key();
+        if ( empty( $chatwoot_api_key ) ) {
+            dt_write_log( 'Chatwoot API key is not set' );
+            return null;
+        }
+
+        $api_url = $chatwoot_url . '/api/v1/accounts/' . intval( $account_id ) . '/inboxes/' . intval( $inbox_id );
+
+        $response = wp_remote_get( $api_url, array(
+            'headers' => array(
+                'Content-Type' => 'application/json',
+                'api_access_token' => $chatwoot_api_key,
+            ),
+            'timeout' => 30
+        ));
+
+        if ( is_wp_error( $response ) ) {
+            dt_write_log( 'Error fetching Chatwoot inbox: ' . $response->get_error_message() );
+            return null;
+        }
+
+        $response_code = wp_remote_retrieve_response_code( $response );
+        if ( $response_code !== 200 ) {
+            dt_write_log( 'Failed to fetch Chatwoot inbox. Response code: ' . $response_code );
+            return null;
+        }
+
+        $body = wp_remote_retrieve_body( $response );
+        $inbox = json_decode( $body, true );
+
+        if ( json_last_error() !== JSON_ERROR_NONE ) {
+            dt_write_log( 'Error decoding Chatwoot inbox response: ' . json_last_error_msg() );
+            return null;
+        }
+
+        $inbox_data = isset( $inbox['inbox'] ) && is_array( $inbox['inbox'] ) ? $inbox['inbox'] : $inbox;
+        if ( empty( $inbox_data['name'] ) ) {
+            return null;
+        }
+
+        if ( !isset( $settings['inbox_names'] ) || !is_array( $settings['inbox_names'] ) ) {
+            $settings['inbox_names'] = array();
+        }
+
+        $settings['inbox_names'][ $inbox_id ] = $inbox_data['name'];
+        update_option( 'dt_chatwoot', $settings );
+
+        return $settings['inbox_names'][ $inbox_id ];
+    }
 }
