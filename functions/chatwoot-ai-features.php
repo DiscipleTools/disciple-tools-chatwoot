@@ -33,7 +33,7 @@ Return a concise handoff note that captures the conversation type and the main r
 Keep the note to 1–2 short sentences (no more than 35 words) in clear, friendly teammate language.
 Only mention blockers, commitments, follow-ups, or next steps if they are explicit in the transcript.
 Do not invent details, quote messages verbatim, or restate every exchange.
-Only return the summary, no other text.
+Only return the summary text itself—do not include headings, labels, or prefixes such as “Summary:”, “Handoff Note:”, bullets, hyphens, or numbering. Start directly with the first word of the summary.
 ';
 
         $transcript = "Conversation Transcript:\n";
@@ -59,6 +59,8 @@ Only return the summary, no other text.
                     $sender_name = 'Team';
                 }  elseif ( $message_type === 2 ) {
                     continue;
+                } elseif ( $message_type === 3 ) {
+                    $sender_name = 'Bot';
                 } else {
                     $sender_name = 'Participant';
                 }
@@ -131,7 +133,7 @@ Return a concise handoff note that captures the conversation type and the main r
 Keep the note to 1–2 short sentences (no more than 35 words) in clear, friendly teammate language.
 Only mention blockers, commitments, follow-ups, or next steps if they are explicit in the transcript.
 Do not invent details, quote messages verbatim, or restate every exchange.
-Only return the summary, no other text.
+Only return the summary text itself—do not include headings, labels, or prefixes such as “Summary:”, “Handoff Note:”, bullets, hyphens, or numbering. Start directly with the first word of the summary.
 ';
 
 $llm_endpoint = trailingslashit( $connection_settings['llm_endpoint'] ) . 'chat/completions';
@@ -166,6 +168,5 @@ $llm_endpoint = trailingslashit( $connection_settings['llm_endpoint'] ) . 'chat/
             return new WP_Error( 'invalid_api_response', 'LLM API did not return a summary.', [ 'status' => 500 ] );
         }
         return $summary;
-     
     }
 }
