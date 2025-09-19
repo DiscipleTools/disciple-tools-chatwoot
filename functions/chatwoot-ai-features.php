@@ -109,7 +109,7 @@ Only return the summary text itself—do not include headings, labels, or prefix
 
         $post_updated = false;
         if ( ! is_null( $conversation_post_id ) ) {
-            $updated = DT_Posts::update_post( 'conversations', $conversation_post_id, [ 'ai_summary' => $summary ], true, false );
+            $updated = DT_Posts::update_post( 'conversations', $conversation_post_id, [ 'ai_summary_array' => $summary ], true, false );
             $post_updated = ! is_wp_error( $updated );
         }
 
