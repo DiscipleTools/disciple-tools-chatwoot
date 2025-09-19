@@ -107,15 +107,17 @@ Only return the summary text itself—do not include headings, labels, or prefix
             return new WP_Error( 'invalid_api_response', 'LLM API did not return a summary.', [ 'status' => 500 ] );
         }
 
+        $summary_array = Disciple_Tools_AI_API::translate_summary( $summary );
+
         $post_updated = false;
         if ( ! is_null( $conversation_post_id ) ) {
-            $updated = DT_Posts::update_post( 'conversations', $conversation_post_id, [ 'ai_summary_array' => $summary ], true, false );
+            $updated = DT_Posts::update_post( 'conversations', $conversation_post_id, [ 'ai_summary_array' => $summary_array ], true, false );
             $post_updated = ! is_wp_error( $updated );
         }
 
         return [
             'updated' => $post_updated,
-            'summary' => $summary,
+            'summary' => $summary_array,
         ];
     }
 

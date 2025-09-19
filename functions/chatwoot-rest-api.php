@@ -346,7 +346,7 @@ class Disciple_Tools_Chatwoot_Endpoints
         return true;
     }
 
-    private function add_message_to_contact( $contact_id, $params, $summary = '' ) {
+    private function add_message_to_contact( $contact_id, $params, $summary = [] ) {
         if ( empty( $contact_id ) ) {
             return;
         }
@@ -360,8 +360,10 @@ class Disciple_Tools_Chatwoot_Endpoints
         );
 
         if ( !empty( $summary ) ) {
-            $summary_text = wp_strip_all_tags( $summary );
-            $comment_content .= "\n\n Summary: " . $summary_text;
+            $comment_content .= "\n\n Summary: \n";
+            foreach( $summary as $value ) {
+              $comment_content .= wp_strip_all_tags( $value ) . "\n";
+            }
         }
 
         DT_Posts::add_post_comment( 'contacts', (int) $contact_id, $comment_content, 'comment', [], false, false );
