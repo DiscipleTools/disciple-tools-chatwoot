@@ -18,6 +18,26 @@ class Disciple_Tools_Chatwoot_API
         return isset( $settings['default_assigned_user'] ) ? $settings['default_assigned_user'] : '';
     }
 
+    public static function is_summarize_with_ai_enabled() {
+        $settings = get_option( 'dt_chatwoot', array() );
+
+        if ( isset( $settings['summarize_with_ai'] ) ) {
+            return (bool) $settings['summarize_with_ai'];
+        }
+
+        return true;
+    }
+
+    public static function is_extract_contact_with_ai_enabled() {
+        $settings = get_option( 'dt_chatwoot', array() );
+
+        if ( isset( $settings['extract_contact_with_ai'] ) ) {
+            return (bool) $settings['extract_contact_with_ai'];
+        }
+
+        return true;
+    }
+
     public static function set_contact_attributes( $attributes, $account_id, $contact_id ) {
         $chatwoot_url = self::get_chatwoot_url();
         if ( empty( $chatwoot_url ) ){

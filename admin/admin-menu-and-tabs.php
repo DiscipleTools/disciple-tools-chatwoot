@@ -145,6 +145,8 @@ class Disciple_Tools_Chatwoot_Tab_General {
         $chatwoot_api_key = isset( $settings['api_key'] ) ? $settings['api_key'] : '';
         $default_assigned_user = isset( $settings['default_assigned_user'] ) ? $settings['default_assigned_user'] : '';
         $integration_setup = isset( $settings['integration_setup'] ) ? $settings['integration_setup'] : false;
+        $summarize_with_ai = isset( $settings['summarize_with_ai'] ) ? (bool) $settings['summarize_with_ai'] : true;
+        $extract_contact_with_ai = isset( $settings['extract_contact_with_ai'] ) ? (bool) $settings['extract_contact_with_ai'] : true;
         ?>
         <form method="post">
             <?php wp_nonce_field( 'dt_admin_form', 'dt_admin_form_nonce' ) ?>
@@ -194,6 +196,30 @@ class Disciple_Tools_Chatwoot_Tab_General {
                             ?>
                         </select>
                         <p class="description">Select the default user to assign new contacts created from Chatwoot conversations</p>
+                    </td>
+                </tr>
+                <tr>
+                    <td>
+                        <label for="chatwoot-summarize-with-ai">Summarize Conversations with AI<br>(Requires AI API key)</label>
+                    </td>
+                    <td>
+                        <label>
+                            <input type="checkbox" id="chatwoot-summarize-with-ai" name="chatwoot-summarize-with-ai" value="1" <?php checked( $summarize_with_ai ); ?>>
+                            Looks at the whole conversation and generates a short handoff note
+                        </label>
+                        <p class="description">Uncheck to prevent Disciple.Tools from generating AI conversation summaries.</p>
+                    </td>
+                </tr>
+                <tr>
+                    <td>
+                        <label for="chatwoot-extract-contact-with-ai">Extract Contact Information with AI<br>(Requires AI API key)</label>
+                    </td>
+                    <td>
+                        <label>
+                            <input type="checkbox" id="chatwoot-extract-contact-with-ai" name="chatwoot-extract-contact-with-ai" value="1" <?php checked( $extract_contact_with_ai ); ?>>
+                            Enable AI to enrich contact details when syncing from Chatwoot
+                        </label>
+                        <p class="description">Finds Name, phone numbers, emails, addresses, locations, language, age, and gender</p>
                     </td>
                 </tr>
                 <tr>
@@ -373,6 +399,9 @@ class Disciple_Tools_Chatwoot_Tab_General {
             if ( isset( $post_vars['default-assigned-user'] ) ) {
                 $settings['default_assigned_user'] = sanitize_text_field( $post_vars['default-assigned-user'] );
             }
+
+            $settings['summarize_with_ai'] = isset( $post_vars['chatwoot-summarize-with-ai'] ) ? '1' : '0';
+            $settings['extract_contact_with_ai'] = isset( $post_vars['chatwoot-extract-contact-with-ai'] ) ? '1' : '0';
 
             update_option( $token, $settings );
 

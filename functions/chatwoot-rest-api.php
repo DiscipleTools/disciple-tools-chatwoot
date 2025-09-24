@@ -123,12 +123,14 @@ class Disciple_Tools_Chatwoot_Endpoints
             }
             $this->save_messages_to_conversation( $dt_conversation['ID'], $full_conversation, $conversation_type );
 
-            $summary = '';
-            $summary_response = Disciple_Tools_Chatwoot_AI::summarize( $full_conversation, $dt_conversation['ID'] );
-            if ( is_wp_error( $summary_response ) ){
-                dt_write_log( $summary_response );
-            } else {
-                $summary = $summary_response['summary'];
+            $summary = [];
+            if ( Disciple_Tools_Chatwoot_API::is_summarize_with_ai_enabled() ) {
+                $summary_response = Disciple_Tools_Chatwoot_AI::summarize( $full_conversation, $dt_conversation['ID'] );
+                if ( is_wp_error( $summary_response ) ) {
+                    dt_write_log( $summary_response );
+                } else {
+                    $summary = $summary_response['summary'];
+                }
             }
             //on the contact add a message about this new conversation and the summary
             $this->add_message_to_contact( $contact_id, $params, $summary );
@@ -202,11 +204,13 @@ class Disciple_Tools_Chatwoot_Endpoints
             ];
         }
 
-
-        $ai_contact_details = Disciple_Tools_Chatwoot_AI::extract_contact_attributes( $conversation_messages );
-        if ( is_wp_error( $ai_contact_details ) ) {
-            dt_write_log( $ai_contact_details );
-            $ai_contact_details = [];
+        $ai_contact_details = [];
+        if ( Disciple_Tools_Chatwoot_API::is_extract_contact_with_ai_enabled() ) {
+            $ai_contact_details = Disciple_Tools_Chatwoot_AI::extract_contact_attributes( $conversation_messages );
+            if ( is_wp_error( $ai_contact_details ) ) {
+                dt_write_log( $ai_contact_details );
+                $ai_contact_details = [];
+            }
         }
 
         if ( is_array( $ai_contact_details ) ) {
