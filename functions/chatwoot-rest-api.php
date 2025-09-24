@@ -377,9 +377,25 @@ class Disciple_Tools_Chatwoot_Endpoints
         );
 
         if ( !empty( $summary ) ) {
-            $comment_content .= "\n\n Summary: \n";
-            foreach ( $summary as $value ) {
-                $comment_content .= wp_strip_all_tags( $value ) . "\n";
+            $comment_content .= "\n\nSummary:\n";
+            if ( is_array( $summary ) ) {
+                foreach ( $summary as $language => $value ) {
+                    if ( is_array( $value ) ) {
+                        $value = implode( ' ', array_map( 'strval', $value ) );
+                    }
+
+                    $clean_summary = trim( wp_strip_all_tags( (string) $value ) );
+                    if ( $clean_summary === '' ) {
+                        continue;
+                    }
+
+                    $language_label = is_string( $language ) ? trim( (string) $language ) : '';
+                    $language_label = $language_label !== '' ? strtoupper( $language_label ) : 'SUMMARY';
+
+                    $comment_content .= sprintf( "[%s] %s\n", $language_label, $clean_summary );
+                }
+            } else {
+                $comment_content .= wp_strip_all_tags( (string) $summary ) . "\n";
             }
         }
 
