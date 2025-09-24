@@ -86,6 +86,7 @@ class Disciple_Tools_Chatwoot {
     }
 
     private function __construct() {
+        require_once( 'functions/chat-functions.php' ); // shared data helpers
         require_once( 'functions/chatwoot-rest-api.php' ); // adds starter rest api class
         require_once( 'functions/chatwoot-api.php' ); // adds starter rest api class
         require_once( 'functions/conversations-setup.php' ); // adds additional conversation types for Chatwoot

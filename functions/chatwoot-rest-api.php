@@ -34,7 +34,7 @@ class Disciple_Tools_Chatwoot_Endpoints
 
         $event = $params['event'];
 
-        $params = $this->format_params( $params );
+        $params = Chat_Functions::format_params( $params );
 
         switch ( $event ) {
             case 'message_created':
@@ -53,107 +53,6 @@ class Disciple_Tools_Chatwoot_Endpoints
     }
 
 
-    /**
-     * Standardize webhook data into a predictable array format.
-     * Converts different webhook types (macro.executed, message_created) into consistent structure.
-     * @param array $params Raw webhook parameters
-     * @return array Standardized parameters with sender, account, inbox, conversation data
-     */
-
-    public function format_params( $params ) {
-
-        $formatted_params = [
-            'event' => $params['event'] ?? null,
-            'sender' => null,
-            'sender_name' => null,
-            'sender_email' => null,
-            'sender_phone' => null,
-            'sender_facebook' => null,
-            'account_id' => null,
-            'inbox_id' => null,
-            'inbox_name' => null,
-            'conversation_id' => null,
-            'channel' => null,
-            'conversation_type' => null,
-            'last_message' => null,
-            'dt_contact_id' => null,
-            'dt_contact_url' => null,
-            'dt_conversation_id' => null,
-            'dt_conversation_url' => null,
-            'trigger' => null,
-            'labels' => null,
-        ];
-
-        // macro.executed format
-        if ( isset( $params['meta']['sender'] ) ) {
-            $sender = $params['meta']['sender'];
-            $formatted_params['sender'] = $sender;
-            $formatted_params['sender_name'] = $sender['name'] ?? null;
-            $formatted_params['sender_email'] = $sender['email'] ?? null;
-            $formatted_params['sender_phone'] = $sender['phone_number'] ?? null;
-            $formatted_params['sender_facebook'] = $sender['additional_attributes']['social_profiles']['facebook'] ?? null;
-            $formatted_params['inbox_id'] = $params['inbox_id'] ?? null;
-            $formatted_params['conversation_id'] = $params['id'] ?? null;
-            $formatted_params['channel'] = $params['channel'] ?? null;
-            $formatted_params['account_id'] = $params['messages'][0]['account_id'] ?? null;
-            $formatted_params['last_message'] = $params['messages'][0] ?? null;
-            $formatted_params['dt_contact_id'] = $sender['custom_attributes']['dt_contact_id'] ?? null;
-            $formatted_params['dt_contact_url'] = $sender['custom_attributes']['dt_contact_url'] ?? null;
-            $formatted_params['dt_conversation_id'] = $params['custom_attributes']['dt_conversation_id'] ?? null;
-            $formatted_params['dt_conversation_url'] = $params['custom_attributes']['dt_conversation_url'] ?? null;
-            $formatted_params['conversation_type'] = $this->get_dt_conversation_type( $formatted_params['channel'] );
-            $formatted_params['trigger'] = $params['trigger'] ?? null;
-        }
-        // message_created format
-        elseif ( isset( $params['conversation']['meta']['sender'] ) ) {
-            $sender = $params['conversation']['meta']['sender'];
-            $formatted_params['sender'] = $sender;
-            $formatted_params['sender_name'] = $sender['name'] ?? null;
-            $formatted_params['sender_email'] = $sender['email'] ?? null;
-            $formatted_params['sender_phone'] = $sender['phone_number'] ?? null;
-            $formatted_params['sender_facebook'] = $sender['additional_attributes']['social_profiles']['facebook'] ?? null;
-            $formatted_params['account_id'] = $params['account']['id'] ?? null;
-            $formatted_params['inbox_id'] = $params['inbox']['id'] ?? null;
-            $formatted_params['inbox_name'] = $params['inbox']['name'] ?? null;
-            $formatted_params['conversation_id'] = $params['conversation']['id'] ?? null;
-            $formatted_params['channel'] = $params['conversation']['channel'] ?? null;
-            $formatted_params['last_message'] = $params['conversation']['messages'][0] ?? null;
-            $formatted_params['dt_contact_id'] = $sender['custom_attributes']['dt_contact_id'] ?? null;
-            $formatted_params['dt_contact_url'] = $sender['custom_attributes']['dt_contact_url'] ?? null;
-            $formatted_params['dt_conversation_id'] = $params['conversation']['custom_attributes']['dt_conversation_id'] ?? null;
-            $formatted_params['dt_conversation_url'] = $params['conversation']['custom_attributes']['dt_conversation_url'] ?? null;
-            $formatted_params['conversation_type'] = $this->get_dt_conversation_type( $formatted_params['channel'] );
-            $formatted_params['labels'] = $params['conversation']['labels'] ?? null;
-        }
-
-        if ( !empty( $formatted_params['account_id'] ) && !empty( $formatted_params['inbox_id'] ) ) {
-            $formatted_params['inbox_name'] = Disciple_Tools_Chatwoot_API::get_inbox_name( $formatted_params['account_id'], $formatted_params['inbox_id'] );
-        }
-
-        return $formatted_params;
-    }
-
-    /**
-     * Map Chatwoot channel type to DT conversation type
-     * @param string $channel_type Chatwoot channel type
-     * @return string DT conversation type
-     */
-    private function get_dt_conversation_type( $channel_type ) {
-        $type_mapping = [
-            'Channel::Email' => 'email',
-            'Channel::WebWidget' => 'web_chat',
-            'Channel::Api' => 'web_chat',
-            'Channel::Sms' => 'sms',
-            'Channel::FacebookPage' => 'facebook',
-            'Channel::InstagramDirectMessage' => 'instagram',
-            'Channel::Whatsapp' => 'whatsapp',
-            'Channel::TelegramBot' => 'telegram',
-            'Channel::Line' => 'line',
-            'Channel::TwitterProfile' => 'twitter'
-        ];
-
-        return $type_mapping[$channel_type] ?? 'chatwoot';
-    }
 
     /**
      * Handle macro executed event. The macro is used when declaring that a contact is ready for D.T in chatwoot.
@@ -171,9 +70,19 @@ class Disciple_Tools_Chatwoot_Endpoints
         }
 
         $contact_id = $params['dt_contact_id'];
+        $full_conversation = [];
 
         if ( empty( $contact_id ) ){
-            $contact = $this->create_contact( $params );
+            $full_conversation = Disciple_Tools_Chatwoot_API::get_full_conversation( $params['account_id'], $params['conversation_id'] );
+            if ( is_wp_error( $full_conversation ) ) {
+                dt_write_log( $full_conversation );
+                $full_conversation = [];
+            } elseif ( empty( $full_conversation ) ) {
+                dt_write_log( 'Unable to fetch full conversation for contact extraction' );
+                $full_conversation = [];
+            }
+
+            $contact = $this->create_contact( $params, is_array( $full_conversation ) ? $full_conversation : [] );
             if ( is_wp_error( $contact ) ){
                 dt_write_log( $contact );
                 return;
@@ -189,7 +98,9 @@ class Disciple_Tools_Chatwoot_Endpoints
         }
 
         if ( empty( $params['dt_conversation_id'] ) ){
-            $full_conversation = Disciple_Tools_Chatwoot_API::get_full_conversation( $params['account_id'], $params['conversation_id'] );
+            if ( empty( $full_conversation ) ) {
+                $full_conversation = Disciple_Tools_Chatwoot_API::get_full_conversation( $params['account_id'], $params['conversation_id'] );
+            }
             if ( empty( $full_conversation ) ){
                 return;
             }
@@ -258,12 +169,14 @@ class Disciple_Tools_Chatwoot_Endpoints
     }
 
 
-    private function create_contact( $params ) {
+    private function create_contact( $params, array $conversation_messages = [] ) {
 
         $assigned_to = Disciple_Tools_Chatwoot_API::get_default_assigned_user();
 
+        $sender_name = isset( $params['sender_name'] ) ? sanitize_text_field( $params['sender_name'] ) : 'Chatwoot Contact';
+
         $contact_fields = [
-            'title' => $params['sender_name'],
+            'title' => $sender_name,
             'overall_status' => 'unassigned'
         ];
         if ( !empty( $assigned_to ) ){
@@ -288,24 +201,113 @@ class Disciple_Tools_Chatwoot_Endpoints
                 ]
             ];
         }
-        if ( !empty( $params['sender_phone'] ) ){
-            $contact_fields['contact_phone'] = [
-                'values' => [
-                    [ 'value' => $params['sender_phone'] ]
-                ]
-            ];
-        }
-        if ( !empty( $params['sender_facebook'] ) ){
-            $contact_fields['contact_facebook'] = [
-                'values' => [
-                    [ 'value' => $params['sender_facebook'] ]
-                ]
-            ];
+
+
+        $ai_contact_details = Disciple_Tools_Chatwoot_AI::extract_contact_attributes( $conversation_messages );
+        if ( is_wp_error( $ai_contact_details ) ) {
+            dt_write_log( $ai_contact_details );
+            $ai_contact_details = [];
         }
 
-        return DT_Posts::create_post( 'contacts', $contact_fields, true, false, [ 'check_for_duplicates' => [ 'contact_email', 'contact_phone', 'contact_facebook' ] ] );
+        if ( is_array( $ai_contact_details ) ) {
+            $ai_name = isset( $ai_contact_details['name'] ) && is_string( $ai_contact_details['name'] ) ? sanitize_text_field( $ai_contact_details['name'] ) : '';
+            if ( $ai_name !== '' ) {
+                $contact_fields['title'] = $ai_name;
+            }
+        }
+
+        $email_values = [];
+        if ( !empty( $params['sender_email'] ) ) {
+            $sender_email = sanitize_email( $params['sender_email'] );
+            if ( !empty( $sender_email ) ) {
+                $email_values[] = $sender_email;
+            }
+        }
+        if ( is_array( $ai_contact_details ) && !empty( $ai_contact_details['emails'] ) && is_array( $ai_contact_details['emails'] ) ) {
+            foreach ( $ai_contact_details['emails'] as $email_candidate ) {
+                if ( !is_string( $email_candidate ) && !is_numeric( $email_candidate ) ) {
+                    continue;
+                }
+                $email_candidate = sanitize_email( (string) $email_candidate );
+                if ( empty( $email_candidate ) ) {
+                    continue;
+                }
+                if ( !in_array( $email_candidate, $email_values, true ) ) {
+                    $email_values[] = $email_candidate;
+                }
+            }
+        }
+        if ( !empty( $email_values ) ) {
+            $contact_fields['contact_email'] = Chat_Functions::array_to_values( $email_values );
+        }
+
+        $phone_values = [];
+        if ( !empty( $params['sender_phone'] ) ) {
+            $normalized_sender_phone = Chat_Functions::normalize_phone_number( $params['sender_phone'] );
+            if ( !empty( $normalized_sender_phone ) ) {
+                $phone_values[] = $normalized_sender_phone;
+            }
+        }
+        if ( is_array( $ai_contact_details ) && !empty( $ai_contact_details['phone_numbers'] ) && is_array( $ai_contact_details['phone_numbers'] ) ) {
+            foreach ( $ai_contact_details['phone_numbers'] as $phone_candidate ) {
+                $normalized_phone = Chat_Functions::normalize_phone_number( $phone_candidate );
+                if ( !is_string( $phone_candidate ) && !is_numeric( $phone_candidate ) || empty( $normalized_phone ) ) {
+                    continue;
+                }
+                if ( !in_array( $normalized_phone, $phone_values, true ) ) {
+                    $phone_values[] = $normalized_phone;
+                }
+            }
+        }
+        if ( !empty( $phone_values ) ) {
+            $contact_fields['contact_phone'] = Chat_Functions::array_to_values( $phone_values );
+        }
+
+        $address_values = [];
+        if ( is_array( $ai_contact_details ) ) {
+            $address_sources = [];
+            if ( !empty( $ai_contact_details['addresses'] ) && is_array( $ai_contact_details['addresses'] ) ) {
+                $address_sources = array_merge( $address_sources, $ai_contact_details['addresses'] );
+            }
+            if ( empty($address_sources) && !empty( $ai_contact_details['locations'] ) && is_array( $ai_contact_details['locations'] ) ) {
+                $address_sources = array_merge( $address_sources, $ai_contact_details['locations'] );
+            }
+
+            foreach ( $address_sources as $address_candidate ) {
+                if ( !is_string( $address_candidate ) && !is_numeric( $address_candidate ) ) {
+                    continue;
+                }
+                $address_candidate = trim( wp_strip_all_tags( (string) $address_candidate ) );
+                if ( $address_candidate === '' ) {
+                    continue;
+                }
+                if ( !in_array( $address_candidate, $address_values, true ) ) {
+                    $address_values[] = $address_candidate;
+                }
+            }
+        }
+        if ( !empty( $address_values ) ) {
+            $contact_fields['contact_address'] = Chat_Functions::array_to_values( $address_values );
+            foreach ( $contact_fields['contact_address']['values'] as $key => $address ) {
+                $contact_fields['contact_address']['values'][$key]['geolocate'] = true;
+            }
+        }
+
+        if ( is_array( $ai_contact_details ) ) {
+
+            $age_key = Chat_Functions::map_age_value( $ai_contact_details['age'] ?? null );
+            if ( $age_key !== '' ) {
+                $contact_fields['age'] = $age_key;
+            }
+
+            $gender_key = Chat_Functions::map_gender_value( $ai_contact_details['gender'] ?? null );
+            if ( $gender_key !== '' ) {
+                $contact_fields['gender'] = $gender_key;
+            }
+        }
+
+        return DT_Posts::create_post( 'contacts', $contact_fields, true, false, [ 'check_for_duplicates' => [ 'contact_email', 'contact_phone' ] ] );
     }
-
 
     private function save_messages_to_conversation( $conversation_id, $conversation_messages, $conversation_type = 'chatwoot' ) {
         if ( empty( $conversation_messages ) || !is_array( $conversation_messages ) ) {
