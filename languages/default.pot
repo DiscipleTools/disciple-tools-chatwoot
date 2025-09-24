@@ -2,14 +2,14 @@
 # This file is distributed under the same license as the Disciple.Tools - Chatwoot plugin.
 msgid ""
 msgstr ""
-"Project-Id-Version: Disciple.Tools - Chatwoot 0.1.2\n"
+"Project-Id-Version: Disciple.Tools - Chatwoot 0.2.0\n"
 "Report-Msgid-Bugs-To: https://wordpress.org/support/plugin/disciple-tools-chatwoot\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
-"POT-Creation-Date: 2025-09-15T14:15:52+00:00\n"
+"POT-Creation-Date: 2025-09-24T13:27:34+00:00\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "X-Generator: WP-CLI 2.12.0\n"
 "X-Domain: disciple-tools-chatwoot\n"
@@ -17,6 +17,35 @@ msgstr ""
 #. Description of the plugin
 #: disciple-tools-chatwoot.php
 msgid "Integrates Chatwoot chat platform with Disciple.Tools for seamless conversation management."
+msgstr ""
+
+#: functions/chatwoot-api.php:277
+msgid "Chatwoot URL is not set."
+msgstr ""
+
+#: functions/chatwoot-api.php:282
+msgid "Chatwoot API key is not set."
+msgstr ""
+
+#: functions/chatwoot-api.php:287
+msgid "Unable to determine the Chatwoot account ID."
+msgstr ""
+
+#. translators: %d is the HTTP error code.
+#: functions/chatwoot-api.php:310
+#, php-format
+msgid "Failed to fetch Chatwoot inboxes (HTTP %d)."
+msgstr ""
+
+#. translators: %s is the JSON parse error message.
+#: functions/chatwoot-api.php:325
+#, php-format
+msgid "Error parsing inbox response: %s"
+msgstr ""
+
+#: functions/chatwoot-api.php:348
+#, php-format
+msgid "Inbox %d"
 msgstr ""
 
 #: functions/conversations-setup.php:22
