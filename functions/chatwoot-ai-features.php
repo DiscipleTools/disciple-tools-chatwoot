@@ -108,6 +108,9 @@ Only return the summary text itself—do not include headings, labels, or prefix
         }
 
         $summary_array = Disciple_Tools_AI_API::translate_summary( $summary );
+        if ( is_wp_error( $summary_array ) ) {
+            $summary_array = [ 'en_US' => $summary ];
+        }
 
         $post_updated = false;
         if ( ! is_null( $conversation_post_id ) ) {
