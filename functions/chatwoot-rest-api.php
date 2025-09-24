@@ -270,6 +270,17 @@ class Disciple_Tools_Chatwoot_Endpoints
             $contact_fields['assigned_to'] = $assigned_to;
         }
 
+        if ( !empty( $params['inbox_id'] ) ) {
+            $inbox_source = Disciple_Tools_Chatwoot_API::get_inbox_source( $params['inbox_id'] );
+            if ( !empty( $inbox_source ) ) {
+                $contact_fields['sources'] = [
+                    'values' => [
+                        [ 'value' => $inbox_source ],
+                    ],
+                ];
+            }
+        }
+
         if ( !empty( $params['sender_email'] ) ){
             $contact_fields['contact_email'] = [
                 'values' => [

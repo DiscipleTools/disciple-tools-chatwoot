@@ -202,11 +202,18 @@ class Disciple_Tools_Chatwoot_Tab_General {
                     </td>
                     <td></td>
                 </tr>
-                <?php if ( !empty( $chatwoot_url ) && !empty( $chatwoot_api_key ) ): ?>
-                </tbody>
-            </table>
+            </tbody>
+        </table>
         </form>
-        
+
+        <?php if ( empty( $chatwoot_url ) || empty( $chatwoot_api_key ) ) :
+            return;
+        endif; ?>
+
+        <?php if ( $integration_setup ) : ?>
+            <?php $this->render_inbox_source_mapping( $token, $settings ); ?>
+        <?php endif; ?>
+
         <!-- Integration Setup Section -->
         <div style="background: #fff; border: 1px solid #ccd0d4; box-shadow: 0 1px 1px rgba(0,0,0,.04); margin-top: 20px; padding: 0;">
             <div style="background: #f1f1f1; border-bottom: 1px solid #ccd0d4; padding: 15px 20px;">
@@ -218,7 +225,7 @@ class Disciple_Tools_Chatwoot_Tab_General {
             <div style="padding: 20px;">
                 <form method="post">
                     <?php wp_nonce_field( 'dt_admin_form', 'dt_admin_form_nonce' ) ?>
-                    
+
                     <div>
                         <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 15px;">
                             <h4 style="margin: 0; color: #23282d;">
@@ -226,21 +233,21 @@ class Disciple_Tools_Chatwoot_Tab_General {
                             </h4>
                             <?php if ( $integration_setup ): ?>
                                 <button type="submit" name="enable-integration" value="1" class="button" style="
-                                    background: #6c757d; 
-                                    border-color: #5a6268; 
+                                    background: #6c757d;
+                                    border-color: #5a6268;
                                     color: #fff;
                                     font-size: 12px;
                                     padding: 6px 12px;
                                     border-radius: 4px;
                                     text-decoration: none;
                                     cursor: pointer;
-                                " onmouseover="this.style.background='#5a6268'" 
+                                " onmouseover="this.style.background='#5a6268'"
                                    onmouseout="this.style.background='#6c757d'">
                                     ⚙️ Re-run configuration
                                 </button>
                             <?php endif; ?>
                         </div>
-                        
+
                         <?php if ( $integration_setup ): ?>
                             <div style="background: #d4edda; border: 1px solid #c3e6cb; border-radius: 4px; padding: 15px; margin-bottom: 15px;">
                                 <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 8px;">
@@ -256,10 +263,10 @@ class Disciple_Tools_Chatwoot_Tab_General {
                                 <p style="margin: 0; color: #856404; font-size: 14px;">Click the button below to set up your Chatwoot integration</p>
                             </div>
                         <?php endif; ?>
-                        
+
                         <div style="background: #f8f9fa; border-radius: 4px; padding: 15px; margin-bottom: <?php echo $integration_setup ? '0' : '20px'; ?>;">
                             <p style="margin: 0 0 10px 0; font-weight: 500; color: #495057;">
-                              This integration sets up labels, webhooks, macros, and custom attributes in your Chatwoot instance: 
+                              This integration sets up labels, webhooks, macros, and custom attributes in your Chatwoot instance:
                             </p>
                             <ul style="margin: 0; padding-left: 20px; color: #6c757d;">
                                 <li style="margin-bottom: 5px;">
@@ -285,11 +292,11 @@ class Disciple_Tools_Chatwoot_Tab_General {
                                 </li>
                             </ul>
                         </div>
-                        
+
                         <?php if ( !$integration_setup ): ?>
                             <div style="text-align: center;">
                                 <button type="submit" name="enable-integration" value="1" class="button" style="
-                                    background: #00a32a; 
+                                    background: #00a32a;
                                     border-color: #007f23;
                                     color: #fff;
                                     font-size: 16px;
@@ -302,7 +309,7 @@ class Disciple_Tools_Chatwoot_Tab_General {
                                     font-weight: 600;
                                     width: 100%;
                                     max-width: 300px;
-                                " onmouseover="this.style.transform='translateY(-2px)'; this.style.boxShadow='0 6px 12px rgba(0,0,0,0.15)'; this.style.background='#028a22'" 
+                                " onmouseover="this.style.transform='translateY(-2px)'; this.style.boxShadow='0 6px 12px rgba(0,0,0,0.15)'; this.style.background='#028a22'"
                                    onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='0 3px 6px rgba(0,0,0,0.1)'; this.style.background='#00a32a'">
                                     🚀 Enable Integration Now
                                 </button>
@@ -312,12 +319,7 @@ class Disciple_Tools_Chatwoot_Tab_General {
                 </form>
             </div>
         </div>
-        
-        <table style="display: none;"><tbody><tr><td>
-                <?php endif; ?>
-                </tbody>
-            </table>
-        </form>
+
         <br>
         <?php
     }
@@ -328,6 +330,37 @@ class Disciple_Tools_Chatwoot_Tab_General {
 
             $post_vars = dt_recursive_sanitize_array( $_POST );
             $settings = get_option( $token, array() );
+            $action = isset( $post_vars['chatwoot_action'] ) ? sanitize_key( $post_vars['chatwoot_action'] ) : '';
+
+            if ( 'save_inbox_sources' === $action ) {
+                $available_sources = $this->get_contact_source_options();
+                $valid_source_keys = array_keys( $available_sources );
+                $mapped_sources = array();
+
+                if ( isset( $post_vars['chatwoot_inbox_sources'] ) && is_array( $post_vars['chatwoot_inbox_sources'] ) ) {
+                    foreach ( $post_vars['chatwoot_inbox_sources'] as $inbox_id => $source_key ) {
+                        $inbox_id = intval( $inbox_id );
+                        if ( $inbox_id <= 0 ) {
+                            continue;
+                        }
+
+                        $source_key = sanitize_key( $source_key );
+                        if ( empty( $source_key ) ) {
+                            continue;
+                        }
+
+                        if ( in_array( $source_key, $valid_source_keys, true ) ) {
+                            $mapped_sources[ $inbox_id ] = $source_key;
+                        }
+                    }
+                }
+
+                $settings['inbox_sources'] = $mapped_sources;
+                update_option( $token, $settings );
+
+                echo '<div class="notice notice-success"><p>' . esc_html__( 'Inbox sources saved successfully.', 'disciple-tools-chatwoot' ) . '</p></div>';
+                return;
+            }
 
             if ( isset( $post_vars['chatwoot-url'] ) ) {
                 $settings['url'] = esc_url_raw( $post_vars['chatwoot-url'] );
@@ -356,6 +389,132 @@ class Disciple_Tools_Chatwoot_Tab_General {
         }
     }
 
+    private function render_inbox_source_mapping( $token, $settings ) {
+        $inboxes = Disciple_Tools_Chatwoot_API::get_chatwoot_inboxes();
+        $sources = $this->get_contact_source_options();
+        $current_mapping = isset( $settings['inbox_sources'] ) && is_array( $settings['inbox_sources'] ) ? $settings['inbox_sources'] : array();
+
+        ?>
+        <div style="margin-top: 20px;">
+            <div style="background: #fff; border: 1px solid #ccd0d4; box-shadow: 0 1px 1px rgba(0,0,0,.04); padding: 0;">
+                <div style="background: #f1f1f1; border-bottom: 1px solid #ccd0d4; padding: 15px 20px;">
+                    <h3 style="margin: 0; color: #23282d;"><?php esc_html_e( 'Inbox Source Mapping', 'disciple-tools-chatwoot' ); ?></h3>
+                </div>
+                <div style="padding: 20px;">
+                    <p style="margin-top: 0; color: #495057;">
+                        <?php esc_html_e( 'Choose which Disciple.Tools source should be applied to contacts coming from each Chatwoot inbox.', 'disciple-tools-chatwoot' ); ?>
+                    </p>
+                    <?php if ( is_wp_error( $inboxes ) ) : ?>
+                        <div class="notice notice-error" style="margin: 0 0 15px 0;">
+                            <p><?php echo esc_html( $inboxes->get_error_message() ); ?></p>
+                        </div>
+                        <?php
+                        $error_data = $inboxes->get_error_data();
+                        if ( is_array( $error_data ) && !empty( $error_data['body'] ) ) :
+                            ?>
+                            <div class="notice notice-error" style="margin: 0;">
+                                <p><code><?php echo esc_html( wp_trim_words( wp_strip_all_tags( $error_data['body'] ), 30, '&hellip;' ) ); ?></code></p>
+                            </div>
+                            <?php
+                        endif;
+                    elseif ( empty( $inboxes ) ) :
+                        ?>
+                        <div class="notice notice-info" style="margin: 0;">
+                            <p><?php esc_html_e( 'No inboxes were returned from Chatwoot. Create an inbox in Chatwoot to map its Disciple.Tools source.', 'disciple-tools-chatwoot' ); ?></p>
+                        </div>
+                    <?php elseif ( empty( $sources ) ) : ?>
+                        <div class="notice notice-info" style="margin: 0;">
+                            <p><?php esc_html_e( 'There are no Disciple.Tools sources available. Add sources under your Disciple.Tools custom lists to enable mapping.', 'disciple-tools-chatwoot' ); ?></p>
+                        </div>
+                    <?php else : ?>
+                        <form method="post">
+                            <?php wp_nonce_field( 'dt_admin_form', 'dt_admin_form_nonce' ); ?>
+                            <input type="hidden" name="chatwoot_action" value="save_inbox_sources" />
+                            <table class="widefat striped">
+                                <thead>
+                                <tr>
+                                    <th><?php esc_html_e( 'Inbox', 'disciple-tools-chatwoot' ); ?></th>
+                                    <th><?php esc_html_e( 'Channel', 'disciple-tools-chatwoot' ); ?></th>
+                                    <th style="width: 260px;">
+                                        <?php esc_html_e( 'Disciple.Tools Source', 'disciple-tools-chatwoot' ); ?>
+                                    </th>
+                                </tr>
+                                </thead>
+                                <tbody>
+                                <?php foreach ( $inboxes as $inbox ) :
+                                    $inbox_id = isset( $inbox['id'] ) ? intval( $inbox['id'] ) : 0;
+                                    if ( $inbox_id <= 0 ) {
+                                        continue;
+                                    }
+                                    $selected_source = isset( $current_mapping[ $inbox_id ] ) ? $current_mapping[ $inbox_id ] : '';
+                                    $channel_type = isset( $inbox['channel_type'] ) ? $inbox['channel_type'] : '';
+                                    if ( !empty( $channel_type ) ) {
+                                        $channel_label = ucwords( str_replace( '_', ' ', $channel_type ) );
+                                    } else {
+                                        $channel_label = __( 'Unknown', 'disciple-tools-chatwoot' );
+                                    }
+                                    ?>
+                                    <tr>
+                                        <td>
+                                            <strong><?php echo esc_html( $inbox['name'] ?? sprintf( __( 'Inbox %d', 'disciple-tools-chatwoot' ), $inbox_id ) ); ?></strong>
+                                        </td>
+                                        <td><?php echo esc_html( $channel_label ); ?></td>
+                                        <td>
+                                            <select name="chatwoot_inbox_sources[<?php echo esc_attr( $inbox_id ); ?>]" style="width: 100%; max-width: 240px;">
+                                                <option value=""><?php esc_html_e( 'Select a source...', 'disciple-tools-chatwoot' ); ?></option>
+                                                <?php foreach ( $sources as $source_key => $source_label ) : ?>
+                                                    <option value="<?php echo esc_attr( $source_key ); ?>" <?php selected( $selected_source, $source_key ); ?>>
+                                                        <?php echo esc_html( $source_label ); ?>
+                                                    </option>
+                                                <?php endforeach; ?>
+                                            </select>
+                                        </td>
+                                    </tr>
+                                <?php endforeach; ?>
+                                </tbody>
+                            </table>
+                            <p style="margin-top: 15px;">
+                                <button type="submit" class="button button-primary"><?php esc_html_e( 'Save Inbox Sources', 'disciple-tools-chatwoot' ); ?></button>
+                            </p>
+                        </form>
+                        <p style="margin: 0; color: #6c757d; font-size: 13px;">
+                            <?php esc_html_e( 'Leave the selection empty to keep new contacts from that inbox without a source.', 'disciple-tools-chatwoot' ); ?>
+                        </p>
+                    <?php endif; ?>
+                </div>
+            </div>
+        </div>
+        <?php
+    }
+
+    private function get_contact_source_options() {
+        if ( !class_exists( 'DT_Posts' ) ) {
+            return array();
+        }
+
+        $post_settings = DT_Posts::get_post_settings( 'contacts' );
+        $defaults = isset( $post_settings['fields']['sources']['default'] ) && is_array( $post_settings['fields']['sources']['default'] )
+            ? $post_settings['fields']['sources']['default']
+            : array();
+
+        $sources = array();
+        foreach ( $defaults as $key => $source ) {
+            if ( isset( $source['deleted'] ) && $source['deleted'] ) {
+                continue;
+            }
+            if ( isset( $source['enabled'] ) && $source['enabled'] === false ) {
+                continue;
+            }
+
+            $label = isset( $source['label'] ) && !empty( $source['label'] ) ? $source['label'] : $key;
+            $sources[ $key ] = $label;
+        }
+
+        natcasesort( $sources );
+
+        return $sources;
+    }
+
     private function setup_chatwoot_integration( $token ) {
         $settings = get_option( $token, array() );
         $chatwoot_url = isset( $settings['url'] ) ? $settings['url'] : '';
@@ -366,7 +525,7 @@ class Disciple_Tools_Chatwoot_Tab_General {
         }
 
         // Get account ID first (needed for API calls)
-        $account_id = $this->get_account_id( $chatwoot_url, $chatwoot_api_key );
+        $account_id = Disciple_Tools_Chatwoot_API::get_account_id( true );
         if ( !$account_id ) {
             return 'Could not retrieve account information';
         }
@@ -409,49 +568,11 @@ class Disciple_Tools_Chatwoot_Tab_General {
         }
 
         // Save integration setup status
+        $settings['account_id'] = intval( $account_id );
         $settings['integration_setup'] = true;
         update_option( $token, $settings );
 
         return true;
-    }
-
-    private function get_account_id( $chatwoot_url, $api_key ) {
-        $api_url = $chatwoot_url . '/api/v1/profile';
-
-        $response = wp_remote_get( $api_url, array(
-            'headers' => array(
-                'Content-Type' => 'application/json',
-                'api_access_token' => $api_key,
-            ),
-            'timeout' => 30
-        ));
-
-        if ( is_wp_error( $response ) ) {
-            dt_write_log( 'Error fetching user profile: ' . $response->get_error_message() );
-            return false;
-        }
-
-        $response_code = wp_remote_retrieve_response_code( $response );
-        if ( $response_code !== 200 ) {
-            dt_write_log( 'Failed to fetch user profile. Response code: ' . $response_code );
-            return false;
-        }
-
-        $body = wp_remote_retrieve_body( $response );
-        $data = json_decode( $body, true );
-
-        if ( json_last_error() !== JSON_ERROR_NONE || empty( $data ) ) {
-            dt_write_log( 'Error parsing user profile response' );
-            return false;
-        }
-
-        // Get the first account from the user's accounts
-        if ( isset( $data['accounts'] ) && !empty( $data['accounts'] ) ) {
-            return $data['accounts'][0]['id'];
-        }
-
-        dt_write_log( 'No accounts found for user' );
-        return false;
     }
 
     private function create_label( $chatwoot_url, $api_key, $account_id ) {
@@ -820,4 +941,3 @@ class Disciple_Tools_Chatwoot_Tab_Second {
         <?php
     }
 }
-
