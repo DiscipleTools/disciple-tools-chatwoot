@@ -317,7 +317,7 @@ Do not invent details, quote messages verbatim, or restate every exchange.
 Only return the summary text itself—do not include headings, labels, or prefixes such as “Summary:”, “Handoff Note:”, bullets, hyphens, or numbering. Start directly with the first word of the summary.
 ';
 
-$llm_endpoint = trailingslashit( $connection_settings['llm_endpoint'] ) . 'chat/completions';
+        $llm_endpoint = trailingslashit( $connection_settings['llm_endpoint'] ) . 'chat/completions';
 
         $response = wp_remote_post( $llm_endpoint, [
             'method' => 'POST',

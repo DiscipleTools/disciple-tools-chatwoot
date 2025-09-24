@@ -251,7 +251,7 @@ class Disciple_Tools_Chatwoot_Endpoints
         if ( is_array( $ai_contact_details ) && !empty( $ai_contact_details['phone_numbers'] ) && is_array( $ai_contact_details['phone_numbers'] ) ) {
             foreach ( $ai_contact_details['phone_numbers'] as $phone_candidate ) {
                 $normalized_phone = Chat_Functions::normalize_phone_number( $phone_candidate );
-                if ( !is_string( $phone_candidate ) && !is_numeric( $phone_candidate ) || empty( $normalized_phone ) ) {
+                if ( ( !is_string( $phone_candidate ) && !is_numeric( $phone_candidate ) ) || empty( $normalized_phone ) ) {
                     continue;
                 }
                 if ( !in_array( $normalized_phone, $phone_values, true ) ) {
@@ -269,7 +269,7 @@ class Disciple_Tools_Chatwoot_Endpoints
             if ( !empty( $ai_contact_details['addresses'] ) && is_array( $ai_contact_details['addresses'] ) ) {
                 $address_sources = array_merge( $address_sources, $ai_contact_details['addresses'] );
             }
-            if ( empty($address_sources) && !empty( $ai_contact_details['locations'] ) && is_array( $ai_contact_details['locations'] ) ) {
+            if ( empty( $address_sources ) && !empty( $ai_contact_details['locations'] ) && is_array( $ai_contact_details['locations'] ) ) {
                 $address_sources = array_merge( $address_sources, $ai_contact_details['locations'] );
             }
 
@@ -374,8 +374,8 @@ class Disciple_Tools_Chatwoot_Endpoints
 
         if ( !empty( $summary ) ) {
             $comment_content .= "\n\n Summary: \n";
-            foreach( $summary as $value ) {
-              $comment_content .= wp_strip_all_tags( $value ) . "\n";
+            foreach ( $summary as $value ) {
+                $comment_content .= wp_strip_all_tags( $value ) . "\n";
             }
         }
 
