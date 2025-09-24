@@ -360,7 +360,7 @@ class Disciple_Tools_Chatwoot_Tab_General {
 
             if ( 'save_inbox_sources' === $action ) {
                 $available_sources = $this->get_contact_source_options();
-                $valid_source_keys = array_keys( $available_sources );
+                $valid_source_keys = array_map( 'strval', array_keys( $available_sources ) );
                 $mapped_sources = array();
 
                 if ( isset( $post_vars['chatwoot_inbox_sources'] ) && is_array( $post_vars['chatwoot_inbox_sources'] ) ) {
@@ -371,11 +371,11 @@ class Disciple_Tools_Chatwoot_Tab_General {
                         }
 
                         $source_key = sanitize_key( $source_key );
-                        if ( empty( $source_key ) ) {
+                        if ( '' === $source_key ) {
                             continue;
                         }
 
-                        if ( in_array( $source_key, $valid_source_keys, true ) ) {
+                        if ( in_array( (string) $source_key, $valid_source_keys, true ) ) {
                             $mapped_sources[ $inbox_id ] = $source_key;
                         }
                     }
