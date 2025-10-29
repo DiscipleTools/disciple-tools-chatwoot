@@ -372,7 +372,7 @@ class Disciple_Tools_Chatwoot_Endpoints
         $inbox_name = $inbox_name !== '' ? wp_strip_all_tags( $inbox_name ) : '';
 
         $comment_content = sprintf(
-            'New conversation from %s.',
+            "New conversation from %s.\nPlease see the Conversations tile to read the full conversation.",
             $inbox_name !== '' ? $inbox_name : 'Chatwoot'
         );
 
