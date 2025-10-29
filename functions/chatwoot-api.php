@@ -135,8 +135,6 @@ class Disciple_Tools_Chatwoot_API
             return false;
         }
 
-        $api_url = $chatwoot_url . '/api/v1/accounts/' . $account_id . '/conversations/' . $conversation_id . '/messages';
-
         $chatwoot_api_token = self::get_chatwoot_api_key();
         if ( empty( $chatwoot_api_token ) ){
             dt_write_log( 'Chatwoot API token is not set' );
@@ -148,31 +146,86 @@ class Disciple_Tools_Chatwoot_API
             'api_access_token' => $chatwoot_api_token,
         );
 
-        $response = wp_remote_get( $api_url, array(
-            'headers' => $headers,
-            'timeout' => 30
-        ));
+        $all_messages = array();
+        $before_id = null;
+        $page = 1;
+        $max_pages = 100; // Safety limit to prevent infinite loops
 
-        if ( is_wp_error( $response ) ) {
-            dt_write_log( 'Error fetching conversation: ' . $response->get_error_message() );
-            return false;
+        do {
+            $api_url = $chatwoot_url . '/api/v1/accounts/' . $account_id . '/conversations/' . $conversation_id . '/messages';
+
+            if ( $before_id !== null ) {
+                // Reference: https://github.com/orgs/chatwoot/discussions/2496
+                $api_url .= '?before=' . intval( $before_id );
+            }
+
+            $response = wp_remote_get( $api_url, array(
+                'headers' => $headers,
+                'timeout' => 30
+            ));
+
+            if ( is_wp_error( $response ) ) {
+                dt_write_log( 'Error fetching conversation (page ' . $page . '): ' . $response->get_error_message() );
+                break;
+            }
+
+            $response_code = wp_remote_retrieve_response_code( $response );
+            if ( $response_code !== 200 ) {
+                dt_write_log( 'Failed to fetch conversation (page ' . $page . '). Response code: ' . $response_code );
+                break;
+            }
+
+            $body = wp_remote_retrieve_body( $response );
+            $data = json_decode( $body, true );
+
+            if ( json_last_error() !== JSON_ERROR_NONE ) {
+                dt_write_log( 'Error decoding JSON response (page ' . $page . '): ' . json_last_error_msg() );
+                break;
+            }
+
+            $messages = isset( $data['payload'] ) && is_array( $data['payload'] ) ? $data['payload'] : array();
+
+            if ( empty( $messages ) ) {
+                break;
+            }
+
+            // Add messages and collect IDs
+            $message_ids = array();
+            foreach ( $messages as $message ) {
+                $all_messages[] = $message;
+                $message_id = isset( $message['id'] ) ? intval( $message['id'] ) : null;
+                if ( $message_id !== null ) {
+                    $message_ids[] = $message_id;
+                }
+            }
+
+            // Get the minimum ID (oldest message) for the next page
+            $before_id = !empty( $message_ids ) ? min( $message_ids ) : null;
+
+            if ( $before_id === null ) {
+                break;
+            }
+
+            // If we got fewer than 20 messages, we've reached the end
+            if ( count( $messages ) < 20 ) {
+                break;
+            }
+
+            $page++;
+
+            // Safety check to prevent infinite loops
+            if ( $page > $max_pages ) {
+                dt_write_log( 'Reached maximum page limit (' . $max_pages . ') when fetching conversation' );
+                break;
+            }
+
+        } while ( true );
+
+        if ( !empty( $all_messages ) ) {
+            dt_write_log( 'Successfully fetched ' . count( $all_messages ) . ' messages across ' . $page . ' page(s) for conversation ' . $conversation_id );
         }
 
-        $response_code = wp_remote_retrieve_response_code( $response );
-        if ( $response_code !== 200 ) {
-            dt_write_log( 'Failed to fetch conversation. Response code: ' . $response_code );
-            return false;
-        }
-
-        $body = wp_remote_retrieve_body( $response );
-        $messages = json_decode( $body, true );
-
-        if ( json_last_error() !== JSON_ERROR_NONE ) {
-            dt_write_log( 'Error decoding JSON response: ' . json_last_error_msg() );
-            return false;
-        }
-
-        return $messages['payload'];
+        return $all_messages;
     }
 
     public static function get_inbox_name( $account_id, $inbox_id ) {
