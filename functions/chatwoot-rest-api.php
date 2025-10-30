@@ -315,19 +315,103 @@ class Disciple_Tools_Chatwoot_Endpoints
 
     private function save_messages_to_conversation( $conversation_id, $conversation_messages, $conversation_type = 'chatwoot' ) {
         if ( empty( $conversation_messages ) || !is_array( $conversation_messages ) ) {
-            dt_write_log( 'No messages to save for contact: ' . $conversation_id );
+            dt_write_log( 'No messages to save for conversation: ' . $conversation_id );
             return;
         }
 
+        // Use bulk insert for better performance
+        $result = $this->insert_bulk_conversation_messages( $conversation_messages, $conversation_id, $conversation_type );
 
-        $saved_count = 0;
-        foreach ( $conversation_messages as $message ) {
-            if ( $this->add_message_to_conversation( $conversation_id, $message, $conversation_type ) ) {
-                $saved_count++;
-            }
+        if ( is_wp_error( $result ) ) {
+            dt_write_log( 'Failed to bulk insert messages: ' . $result->get_error_message() );
+            return;
         }
 
-        dt_write_log( 'Successfully saved ' . $saved_count . ' messages to conversation: ' . $conversation_id );
+        dt_write_log( 'Successfully saved ' . $result . ' messages to conversation: ' . $conversation_id );
+    }
+
+    /**
+     * Bulk insert conversation messages directly into the database
+     * Based on insert_bulk_comments from contacts-transfer.php
+     *
+     * @param array $messages Array of Chatwoot messages
+     * @param int $conversation_id The D.T conversation ID
+     * @param string $conversation_type The conversation type (e.g., 'chatwoot', 'whatsapp', etc.)
+     * @return int|WP_Error Number of messages inserted or WP_Error on failure
+     */
+    private function insert_bulk_conversation_messages( $messages, $conversation_id, $conversation_type = 'chatwoot' ) {
+        if ( empty( $messages ) ) {
+            return 0;
+        }
+
+        global $wpdb;
+        $total_inserted = 0;
+
+        // Process messages in chunks of 200
+        $chunks = array_chunk( $messages, 200 );
+
+        foreach ( $chunks as $chunk ) {
+            if ( empty( $chunk ) ) {
+                continue;
+            }
+
+            $sql = "INSERT INTO $wpdb->comments (comment_post_ID, comment_author, comment_author_email, comment_date, comment_date_gmt, comment_content, comment_approved, comment_type, comment_parent, user_id) VALUES ";
+
+            $valid_messages = 0;
+            foreach ( $chunk as $message ) {
+                // Skip invalid messages
+                if ( empty( $message['content'] ) || empty( $message['created_at'] ) ) {
+                    continue;
+                }
+
+                // Filter by message_type (0 = incoming, 1 = outgoing)
+                $message_type = isset( $message['message_type'] ) ? $message['message_type'] : -1;
+                if ( $message_type !== 0 && $message_type !== 1 ) {
+                    continue;
+                }
+
+                // Extract sender name
+                $sender_name = isset( $message['sender']['name'] ) ? $message['sender']['name'] : 'Chatwoot';
+
+                // Convert timestamp to MySQL datetime
+                $message_time = gmdate( 'Y-m-d H:i:s', $message['created_at'] );
+
+                // Sanitize content
+                $content = isset( $message['content'] ) ? $message['content'] : '';
+
+                $sql .= $wpdb->prepare( '( %d, %s, %s, %s, %s, %s, %d, %s, %d, %d ),',
+                    $conversation_id,
+                    $sender_name,
+                    '', // comment_author_email (not used for Chatwoot)
+                    $message_time,
+                    $message_time, // comment_date_gmt (same as comment_date since we use gmdate)
+                    $content,
+                    1, // comment_approved
+                    $conversation_type,
+                    0, // comment_parent
+                    0  // user_id
+                );
+
+                $valid_messages++;
+            }
+
+            // Skip if no valid messages in this chunk
+            if ( $valid_messages === 0 ) {
+                continue;
+            }
+
+            $sql .= ';';
+            $sql = str_replace( ',;', ';', $sql ); // remove last comma
+
+            $result = $wpdb->query( $sql ); // @phpcs:ignore
+            if ( empty( $result ) || is_wp_error( $result ) ) {
+                return new WP_Error( __FUNCTION__, 'Failed to insert messages for conversation ' . $conversation_id );
+            }
+
+            $total_inserted += $valid_messages;
+        }
+
+        return $total_inserted;
     }
 
     private function add_message_to_conversation( $dt_conversation_id, $message_params, $conversation_type = 'chatwoot' ) {
