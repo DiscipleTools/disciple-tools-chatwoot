@@ -5,7 +5,7 @@
  * Description: Integrates Chatwoot chat platform with Disciple.Tools for seamless conversation management.
  * Text Domain: disciple-tools-chatwoot
  * Domain Path: /languages
- * Version:  0.2.0
+ * Version:  0.3.0
  * Author URI: https://github.com/DiscipleTools
  * GitHub Plugin URI: https://github.com/DiscipleTools/disciple-tools-chatwoot
  * Requires at least: 4.7.0
