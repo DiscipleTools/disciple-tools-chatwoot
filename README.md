@@ -12,8 +12,7 @@ Have conversations with your audience on Chatwoot. These can be Facebook, email,
 When you are ready used the "Sycn to D.T" macro.
 This sends the contact and all the conversation to Disciple.Tools for further follow-up. 
 
-<img width="1439" height="918" alt="image" src="https://github.com/user-attachments/assets/1e7ef551-99d3-452d-b2db-5b6e2c9d805c" />
-
+<img width="1528" height="915" alt="Chatwood-dashboard" src="https://github.com/user-attachments/assets/ef45797b-142e-45ec-a79f-48e6aad03b38" />
 
 ## Features
 
