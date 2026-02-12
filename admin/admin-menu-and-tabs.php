@@ -147,7 +147,7 @@ class Disciple_Tools_Chatwoot_Tab_General {
         $integration_setup = isset( $settings['integration_setup'] ) ? $settings['integration_setup'] : false;
         $summarize_with_ai = isset( $settings['summarize_with_ai'] ) ? (bool) $settings['summarize_with_ai'] : true;
         $extract_contact_with_ai = isset( $settings['extract_contact_with_ai'] ) ? (bool) $settings['extract_contact_with_ai'] : true;
-        
+
         // Get available accounts if credentials are set
         $available_accounts = array();
         $selected_account_id = isset( $settings['account_id'] ) ? intval( $settings['account_id'] ) : 0;
@@ -269,7 +269,7 @@ class Disciple_Tools_Chatwoot_Tab_General {
             return;
         endif; ?>
 
-        <?php 
+        <?php
         // Check if account selection is needed
         $needs_account_selection = count( $available_accounts ) > 1 && empty( $selected_account_id );
         ?>
@@ -449,7 +449,7 @@ class Disciple_Tools_Chatwoot_Tab_General {
             // Handle account selection for multiple accounts
             if ( isset( $post_vars['chatwoot-account-id'] ) && !empty( $post_vars['chatwoot-account-id'] ) ) {
                 $account_id = intval( $post_vars['chatwoot-account-id'] );
-                
+
                 // Verify this is a valid account
                 $available_accounts = Disciple_Tools_Chatwoot_API::get_available_accounts();
                 $valid_account = false;
@@ -459,7 +459,7 @@ class Disciple_Tools_Chatwoot_Tab_General {
                         break;
                     }
                 }
-                
+
                 if ( $valid_account ) {
                     $settings['account_id'] = $account_id;
                 } else {
@@ -480,7 +480,7 @@ class Disciple_Tools_Chatwoot_Tab_General {
                     echo '<div class="notice notice-error"><p>Please select a Chatwoot account before enabling integration.</p></div>';
                     return;
                 }
-                
+
                 $result = $this->setup_chatwoot_integration( $token );
                 if ( $result === true ) {
                     echo '<div class="notice notice-success"><p>Integration enabled successfully! Chatwoot components created.</p></div>';
@@ -629,10 +629,10 @@ class Disciple_Tools_Chatwoot_Tab_General {
         }
 
         // Get account ID - use stored value if available, otherwise fetch
-        $account_id = isset( $settings['account_id'] ) && intval( $settings['account_id'] ) > 0 
+        $account_id = isset( $settings['account_id'] ) && intval( $settings['account_id'] ) > 0
             ? intval( $settings['account_id'] )
             : Disciple_Tools_Chatwoot_API::get_account_id();
-            
+
         if ( !$account_id ) {
             return 'Could not retrieve account information';
         }

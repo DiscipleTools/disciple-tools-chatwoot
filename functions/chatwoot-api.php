@@ -218,9 +218,7 @@ class Disciple_Tools_Chatwoot_API
                 dt_write_log( 'Reached maximum page limit (' . $max_pages . ') when fetching conversation' );
                 break;
             }
-
         } while ( true );
-
         if ( !empty( $all_messages ) ) {
             dt_write_log( 'Successfully fetched ' . count( $all_messages ) . ' messages across ' . $page . ' page(s) for conversation ' . $conversation_id );
         }
