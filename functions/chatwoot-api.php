@@ -313,15 +313,71 @@ class Disciple_Tools_Chatwoot_API
             return false;
         }
 
-        $account_id = self::fetch_account_id_from_api( $chatwoot_url, $chatwoot_api_key );
-        if ( !$account_id ) {
+        // Get all accounts
+        $accounts = self::get_available_accounts( $chatwoot_url, $chatwoot_api_key );
+        if ( empty( $accounts ) ) {
             return false;
         }
 
-        $settings['account_id'] = intval( $account_id );
-        update_option( 'dt_chatwoot', $settings );
+        // If only one account, auto-select it
+        if ( count( $accounts ) === 1 ) {
+            $account_id = intval( $accounts[0]['id'] );
+            $settings['account_id'] = $account_id;
+            update_option( 'dt_chatwoot', $settings );
+            return $account_id;
+        }
 
-        return intval( $account_id );
+        // Multiple accounts - user must select one
+        // Return false if no account is selected yet
+        return false;
+    }
+
+    public static function get_available_accounts( $chatwoot_url = null, $api_key = null ) {
+        if ( $chatwoot_url === null ) {
+            $chatwoot_url = self::get_chatwoot_url();
+        }
+        if ( $api_key === null ) {
+            $api_key = self::get_chatwoot_api_key();
+        }
+
+        if ( empty( $chatwoot_url ) || empty( $api_key ) ) {
+            return array();
+        }
+
+        $api_url = untrailingslashit( $chatwoot_url ) . '/api/v1/profile';
+
+        $response = wp_remote_get( $api_url, array(
+            'headers' => array(
+                'Content-Type' => 'application/json',
+                'api_access_token' => $api_key,
+            ),
+            'timeout' => 30
+        ));
+
+        if ( is_wp_error( $response ) ) {
+            dt_write_log( 'Error fetching user profile: ' . $response->get_error_message() );
+            return array();
+        }
+
+        $response_code = wp_remote_retrieve_response_code( $response );
+        if ( $response_code !== 200 ) {
+            dt_write_log( 'Failed to fetch user profile. Response code: ' . $response_code );
+            return array();
+        }
+
+        $body = wp_remote_retrieve_body( $response );
+        $data = json_decode( $body, true );
+
+        if ( json_last_error() !== JSON_ERROR_NONE || empty( $data ) ) {
+            dt_write_log( 'Error parsing user profile response' );
+            return array();
+        }
+
+        if ( isset( $data['accounts'] ) && is_array( $data['accounts'] ) ) {
+            return $data['accounts'];
+        }
+
+        return array();
     }
 
     public static function get_chatwoot_inboxes( $force_refresh = false ) {
@@ -443,40 +499,11 @@ class Disciple_Tools_Chatwoot_API
     }
 
     private static function fetch_account_id_from_api( $chatwoot_url, $api_key ) {
-        $api_url = untrailingslashit( $chatwoot_url ) . '/api/v1/profile';
-
-        $response = wp_remote_get( $api_url, array(
-            'headers' => array(
-                'Content-Type' => 'application/json',
-                'api_access_token' => $api_key,
-            ),
-            'timeout' => 30
-        ));
-
-        if ( is_wp_error( $response ) ) {
-            dt_write_log( 'Error fetching user profile: ' . $response->get_error_message() );
-            return false;
+        // This method is deprecated - use get_available_accounts() instead
+        $accounts = self::get_available_accounts( $chatwoot_url, $api_key );
+        if ( !empty( $accounts ) ) {
+            return intval( $accounts[0]['id'] );
         }
-
-        $response_code = wp_remote_retrieve_response_code( $response );
-        if ( $response_code !== 200 ) {
-            dt_write_log( 'Failed to fetch user profile. Response code: ' . $response_code );
-            return false;
-        }
-
-        $body = wp_remote_retrieve_body( $response );
-        $data = json_decode( $body, true );
-
-        if ( json_last_error() !== JSON_ERROR_NONE || empty( $data ) ) {
-            dt_write_log( 'Error parsing user profile response' );
-            return false;
-        }
-
-        if ( isset( $data['accounts'] ) && !empty( $data['accounts'] ) ) {
-            return intval( $data['accounts'][0]['id'] );
-        }
-
-        dt_write_log( 'No accounts found for user' );
         return false;
     }
 }

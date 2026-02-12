@@ -147,6 +147,13 @@ class Disciple_Tools_Chatwoot_Tab_General {
         $integration_setup = isset( $settings['integration_setup'] ) ? $settings['integration_setup'] : false;
         $summarize_with_ai = isset( $settings['summarize_with_ai'] ) ? (bool) $settings['summarize_with_ai'] : true;
         $extract_contact_with_ai = isset( $settings['extract_contact_with_ai'] ) ? (bool) $settings['extract_contact_with_ai'] : true;
+        
+        // Get available accounts if credentials are set
+        $available_accounts = array();
+        $selected_account_id = isset( $settings['account_id'] ) ? intval( $settings['account_id'] ) : 0;
+        if ( !empty( $chatwoot_url ) && !empty( $chatwoot_api_key ) ) {
+            $available_accounts = Disciple_Tools_Chatwoot_API::get_available_accounts();
+        }
         ?>
         <form method="post">
             <?php wp_nonce_field( 'dt_admin_form', 'dt_admin_form_nonce' ) ?>
@@ -221,8 +228,34 @@ class Disciple_Tools_Chatwoot_Tab_General {
                         </label>
                         <p class="description">Finds Name, phone numbers, emails, addresses, locations, language, age, and gender</p>
                     </td>
-                </tr>
+                </tr>                <?php if ( !empty( $available_accounts ) && count( $available_accounts ) > 1 ) : ?>
                 <tr>
+                    <td>
+                        <label for="chatwoot-account-id">Chatwoot Account <span style="color: red;">*</span></label>
+                    </td>
+                    <td>
+                        <select name="chatwoot-account-id" id="chatwoot-account-id" style="min-width: 300px;">
+                            <option value="">Select an account...</option>
+                            <?php foreach ( $available_accounts as $account ) : ?>
+                                <option value="<?php echo esc_attr( $account['id'] ); ?>" <?php selected( $selected_account_id, $account['id'] ); ?>>
+                                    <?php echo esc_html( $account['name'] ); ?> (ID: <?php echo esc_html( $account['id'] ); ?>)
+                                </option>
+                            <?php endforeach; ?>
+                        </select>
+                        <p class="description">Multiple accounts found. Select the account you want to connect to this Disciple.Tools instance.</p>
+                    </td>
+                </tr>
+                <?php elseif ( !empty( $available_accounts ) && count( $available_accounts ) === 1 ) : ?>
+                <tr>
+                    <td>
+                        <label>Chatwoot Account</label>
+                    </td>
+                    <td>
+                        <strong><?php echo esc_html( $available_accounts[0]['name'] ); ?></strong> (ID: <?php echo esc_html( $available_accounts[0]['id'] ); ?>)
+                        <p class="description">Automatically selected (only one account available)</p>
+                    </td>
+                </tr>
+                <?php endif; ?>                <tr>
                     <td>
                         <button class="button button-primary">Save Settings</button>
                     </td>
@@ -235,6 +268,11 @@ class Disciple_Tools_Chatwoot_Tab_General {
         <?php if ( empty( $chatwoot_url ) || empty( $chatwoot_api_key ) ) :
             return;
         endif; ?>
+
+        <?php 
+        // Check if account selection is needed
+        $needs_account_selection = count( $available_accounts ) > 1 && empty( $selected_account_id );
+        ?>
 
         <?php if ( $integration_setup ) : ?>
             <?php $this->render_inbox_source_mapping( $token, $settings ); ?>
@@ -320,6 +358,13 @@ class Disciple_Tools_Chatwoot_Tab_General {
                         </div>
 
                         <?php if ( !$integration_setup ): ?>
+                            <?php if ( $needs_account_selection ): ?>
+                                <div style="background: #fff3cd; border: 1px solid #ffeaa7; border-radius: 4px; padding: 15px; margin-bottom: 15px; text-align: center;">
+                                    <p style="margin: 0; color: #856404; font-weight: 500;">
+                                        ⚠️ Please select a Chatwoot account in the settings above before enabling integration.
+                                    </p>
+                                </div>
+                            <?php else: ?>
                             <div style="text-align: center;">
                                 <button type="submit" name="enable-integration" value="1" class="button" style="
                                     background: #00a32a;
@@ -340,6 +385,7 @@ class Disciple_Tools_Chatwoot_Tab_General {
                                     🚀 Enable Integration Now
                                 </button>
                             </div>
+                            <?php endif; ?>
                         <?php endif; ?>
                     </div>
                 </form>
@@ -400,12 +446,41 @@ class Disciple_Tools_Chatwoot_Tab_General {
                 $settings['default_assigned_user'] = sanitize_text_field( $post_vars['default-assigned-user'] );
             }
 
+            // Handle account selection for multiple accounts
+            if ( isset( $post_vars['chatwoot-account-id'] ) && !empty( $post_vars['chatwoot-account-id'] ) ) {
+                $account_id = intval( $post_vars['chatwoot-account-id'] );
+                
+                // Verify this is a valid account
+                $available_accounts = Disciple_Tools_Chatwoot_API::get_available_accounts();
+                $valid_account = false;
+                foreach ( $available_accounts as $account ) {
+                    if ( intval( $account['id'] ) === $account_id ) {
+                        $valid_account = true;
+                        break;
+                    }
+                }
+                
+                if ( $valid_account ) {
+                    $settings['account_id'] = $account_id;
+                } else {
+                    echo '<div class="notice notice-error"><p>Invalid account selected.</p></div>';
+                    return;
+                }
+            }
+
             $settings['summarize_with_ai'] = isset( $post_vars['chatwoot-summarize-with-ai'] ) ? '1' : '0';
             $settings['extract_contact_with_ai'] = isset( $post_vars['chatwoot-extract-contact-with-ai'] ) ? '1' : '0';
 
             update_option( $token, $settings );
 
             if ( isset( $post_vars['enable-integration'] ) && $post_vars['enable-integration'] == '1' ) {
+                // Check if account is selected (for multiple accounts)
+                $available_accounts = Disciple_Tools_Chatwoot_API::get_available_accounts();
+                if ( count( $available_accounts ) > 1 && empty( $settings['account_id'] ) ) {
+                    echo '<div class="notice notice-error"><p>Please select a Chatwoot account before enabling integration.</p></div>';
+                    return;
+                }
+                
                 $result = $this->setup_chatwoot_integration( $token );
                 if ( $result === true ) {
                     echo '<div class="notice notice-success"><p>Integration enabled successfully! Chatwoot components created.</p></div>';
@@ -553,8 +628,11 @@ class Disciple_Tools_Chatwoot_Tab_General {
             return 'Missing Chatwoot URL or API key';
         }
 
-        // Get account ID first (needed for API calls)
-        $account_id = Disciple_Tools_Chatwoot_API::get_account_id( true );
+        // Get account ID - use stored value if available, otherwise fetch
+        $account_id = isset( $settings['account_id'] ) && intval( $settings['account_id'] ) > 0 
+            ? intval( $settings['account_id'] )
+            : Disciple_Tools_Chatwoot_API::get_account_id();
+            
         if ( !$account_id ) {
             return 'Could not retrieve account information';
         }
