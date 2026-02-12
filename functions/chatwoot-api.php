@@ -325,8 +325,21 @@ class Disciple_Tools_Chatwoot_API
             return $account_id;
         }
 
-        // Multiple accounts - user must select one
-        // Return false if no account is selected yet
+        // Multiple accounts - check if stored account is still valid
+        $stored_account_id = isset( $settings['account_id'] ) ? intval( $settings['account_id'] ) : 0;
+        if ( $stored_account_id > 0 ) {
+            foreach ( $accounts as $account ) {
+                if ( intval( $account['id'] ) === $stored_account_id ) {
+                    // Stored account is still valid
+                    return $stored_account_id;
+                }
+            }
+            // Stored account is no longer valid, clear it
+            unset( $settings['account_id'] );
+            update_option( 'dt_chatwoot', $settings );
+        }
+
+        // Multiple accounts and no valid selection - user must select one
         return false;
     }
 
