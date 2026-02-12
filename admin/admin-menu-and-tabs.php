@@ -364,7 +364,7 @@ class Disciple_Tools_Chatwoot_Tab_General {
                                         ⚠️ Please select a Chatwoot account in the settings above before enabling integration.
                                     </p>
                                 </div>
-                            <?php else: ?>
+                            <?php else : ?>
                             <div style="text-align: center;">
                                 <button type="submit" name="enable-integration" value="1" class="button" style="
                                     background: #00a32a;
