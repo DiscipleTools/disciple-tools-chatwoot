@@ -1,15 +1,15 @@
-# Copyright (C) 2025 
+# Copyright (C) 2026 
 # This file is distributed under the same license as the Disciple.Tools - Chatwoot plugin.
 msgid ""
 msgstr ""
-"Project-Id-Version: Disciple.Tools - Chatwoot 0.3.0\n"
+"Project-Id-Version: Disciple.Tools - Chatwoot 0.4.0\n"
 "Report-Msgid-Bugs-To: https://wordpress.org/support/plugin/disciple-tools-chatwoot\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
-"POT-Creation-Date: 2025-10-30T10:06:56+00:00\n"
+"POT-Creation-Date: 2026-02-13T14:50:38+00:00\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "X-Generator: WP-CLI 2.12.0\n"
 "X-Domain: disciple-tools-chatwoot\n"
@@ -19,33 +19,90 @@ msgstr ""
 msgid "Integrates Chatwoot chat platform with Disciple.Tools for seamless conversation management."
 msgstr ""
 
-#: functions/chatwoot-api.php:330
+#: functions/chatwoot-api.php:397
 msgid "Chatwoot URL is not set."
 msgstr ""
 
-#: functions/chatwoot-api.php:335
+#: functions/chatwoot-api.php:402
 msgid "Chatwoot API key is not set."
 msgstr ""
 
-#: functions/chatwoot-api.php:340
+#: functions/chatwoot-api.php:407
 msgid "Unable to determine the Chatwoot account ID."
 msgstr ""
 
 #. translators: %d is the HTTP error code.
-#: functions/chatwoot-api.php:363
+#: functions/chatwoot-api.php:430
 #, php-format
 msgid "Failed to fetch Chatwoot inboxes (HTTP %d)."
 msgstr ""
 
 #. translators: %s is the JSON parse error message.
-#: functions/chatwoot-api.php:378
+#: functions/chatwoot-api.php:445
 #, php-format
 msgid "Error parsing inbox response: %s"
 msgstr ""
 
-#: functions/chatwoot-api.php:401
+#: functions/chatwoot-api.php:468
 #, php-format
 msgid "Inbox %d"
+msgstr ""
+
+#: functions/conversation-tile.php:22
+msgid "Chatwoot"
+msgstr ""
+
+#: functions/conversation-tile.php:72
+msgid "Sync conversation messages from Chatwoot to this D.T conversation record."
+msgstr ""
+
+#: functions/conversation-tile.php:76
+msgid "Chatwoot Account ID:"
+msgstr ""
+
+#: functions/conversation-tile.php:77
+msgid "Chatwoot Conversation ID:"
+msgstr ""
+
+#: functions/conversation-tile.php:83
+msgid "View in Chatwoot"
+msgstr ""
+
+#: functions/conversation-tile.php:94
+msgid "Re-sync Conversation"
+msgstr ""
+
+#: functions/conversation-tile.php:167
+msgid "Syncing..."
+msgstr ""
+
+#: functions/conversation-tile.php:168
+msgid "Successfully synced {count} messages!"
+msgstr ""
+
+#: functions/conversation-tile.php:169
+msgid "Error syncing conversation: {error}"
+msgstr ""
+
+#: functions/conversation-tile.php:267
+msgid "Missing required parameters"
+msgstr ""
+
+#: functions/conversation-tile.php:282
+msgid "Chatwoot API class not found"
+msgstr ""
+
+#: functions/conversation-tile.php:288
+msgid "Failed to fetch conversation from Chatwoot"
+msgstr ""
+
+#: functions/conversation-tile.php:294
+msgid "No messages found in Chatwoot conversation"
+msgstr ""
+
+#: functions/conversation-tile.php:327
+#, php-format
+msgid "Successfully synced %d messages"
 msgstr ""
 
 #: functions/conversations-setup.php:22
