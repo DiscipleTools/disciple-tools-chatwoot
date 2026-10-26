@@ -679,6 +679,12 @@ class Disciple_Tools_Chatwoot_Tab_General {
         $settings['integration_setup'] = true;
         update_option( $token, $settings );
 
+        // Adds the token to a macro or webhook that already existed, and stores the signing secret
+        $sync_result = Disciple_Tools_Chatwoot_Webhook_Security::sync_chatwoot();
+        if ( $sync_result !== true ) {
+            return 'Failed to add the security token to the Chatwoot macro and webhook: ' . $sync_result;
+        }
+
         return true;
     }
 
@@ -727,7 +733,7 @@ class Disciple_Tools_Chatwoot_Tab_General {
         }
 
         $api_url = $chatwoot_url . '/api/v1/accounts/' . $account_id . '/macros';
-        $webhook_url = rest_url( 'dt-public/chatwoot/v1/sync' ) . '?trigger=true';
+        $webhook_url = Disciple_Tools_Chatwoot_Webhook_Security::get_sync_url( true );
 
         $data = array(
             'name' => 'Sync with D.T',
@@ -823,7 +829,7 @@ class Disciple_Tools_Chatwoot_Tab_General {
     private function create_webhook( $chatwoot_url, $api_key, $account_id ) {
         $api_url = $chatwoot_url . '/api/v1/accounts/' . $account_id . '/webhooks';
 
-        $webhook_url = rest_url( 'dt-public/chatwoot/v1/sync' );
+        $webhook_url = Disciple_Tools_Chatwoot_Webhook_Security::get_sync_url();
 
         $data = array(
             'url' => $webhook_url,

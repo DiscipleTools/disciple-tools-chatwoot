@@ -264,6 +264,60 @@ class Disciple_Tools_Chatwoot_API
         return isset( $data['custom_attributes'] ) && is_array( $data['custom_attributes'] ) ? $data['custom_attributes'] : array();
     }
 
+    private static function get_json( $api_path ) {
+        $chatwoot_url = self::get_chatwoot_url();
+        $chatwoot_api_key = self::get_chatwoot_api_key();
+        if ( empty( $chatwoot_url ) || empty( $chatwoot_api_key ) ){
+            dt_write_log( 'Chatwoot URL or API key is not set' );
+            return false;
+        }
+
+        $response = wp_remote_get( $chatwoot_url . $api_path, array(
+            'headers' => array(
+                'Content-Type' => 'application/json',
+                'api_access_token' => $chatwoot_api_key,
+            ),
+            'timeout' => 30
+        ));
+
+        if ( is_wp_error( $response ) ) {
+            dt_write_log( 'Error fetching ' . $api_path . ': ' . $response->get_error_message() );
+            return false;
+        }
+
+        $response_code = wp_remote_retrieve_response_code( $response );
+        if ( $response_code !== 200 ) {
+            dt_write_log( 'Failed to fetch ' . $api_path . '. Response code: ' . $response_code );
+            return false;
+        }
+
+        $data = json_decode( wp_remote_retrieve_body( $response ), true );
+        return is_array( $data ) ? $data : false;
+    }
+
+    public static function get_conversation( $account_id, $conversation_id ) {
+        return self::get_json( '/api/v1/accounts/' . intval( $account_id ) . '/conversations/' . intval( $conversation_id ) );
+    }
+
+    /**
+     * Find a message among the newest page of a conversation's messages.
+     */
+    public static function get_conversation_message( $account_id, $conversation_id, $message_id ) {
+        $message_id = intval( $message_id );
+        if ( $message_id <= 0 ) {
+            return false;
+        }
+
+        $data = self::get_json( '/api/v1/accounts/' . intval( $account_id ) . '/conversations/' . intval( $conversation_id ) . '/messages' );
+        $messages = isset( $data['payload'] ) && is_array( $data['payload'] ) ? $data['payload'] : array();
+        foreach ( $messages as $message ) {
+            if ( isset( $message['id'] ) && intval( $message['id'] ) === $message_id ) {
+                return $message;
+            }
+        }
+        return false;
+    }
+
     public static function get_inbox_name( $account_id, $inbox_id ) {
         if ( empty( $account_id ) || empty( $inbox_id ) ) {
             return null;

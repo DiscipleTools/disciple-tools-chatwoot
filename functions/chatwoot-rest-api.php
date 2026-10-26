@@ -15,9 +15,7 @@ class Disciple_Tools_Chatwoot_Endpoints
             $namespace, '/sync', [
                 'methods'  => 'POST',
                 'callback' => [ $this, 'sync' ],
-                'permission_callback' => function( WP_REST_Request $request ) {
-                    return true;
-                },
+                'permission_callback' => [ 'Disciple_Tools_Chatwoot_Webhook_Security', 'authorize_request' ],
             ]
         );
     }
@@ -38,7 +36,7 @@ class Disciple_Tools_Chatwoot_Endpoints
 
         switch ( $event ) {
             case 'message_created':
-                $this->handle_message_created( $params );
+                $this->handle_message_created( $params, Disciple_Tools_Chatwoot_Webhook_Security::has_valid_signature( $request ) );
                 break;
             case 'conversation_updated':
                 $this->handle_conversation_updated( $params );
@@ -66,6 +64,11 @@ class Disciple_Tools_Chatwoot_Endpoints
         }
         if ( !class_exists( 'Disciple_Tools_Chatwoot_API' ) ){
             dt_write_log( 'Disciple_Tools_Chatwoot_API class not found' );
+            return;
+        }
+
+        $params = $this->get_verified_macro_params( $params['conversation_id'] );
+        if ( empty( $params ) ){
             return;
         }
 
@@ -144,24 +147,70 @@ class Disciple_Tools_Chatwoot_Endpoints
         return true;
     }
 
-    private function handle_message_created( $params ) {
+    /**
+     * Rebuild the macro params from the conversation as stored in Chatwoot, so nothing in the
+     * unsigned macro request is trusted. Only conversations labelled dt-sync by the macro are accepted.
+     */
+    private function get_verified_macro_params( $conversation_id ) {
+        $account_id = Disciple_Tools_Chatwoot_API::get_account_id();
+        $conversation_id = absint( $conversation_id );
+        if ( empty( $account_id ) || empty( $conversation_id ) ){
+            return false;
+        }
+
+        $conversation = Disciple_Tools_Chatwoot_API::get_conversation( $account_id, $conversation_id );
+        $labels = isset( $conversation['labels'] ) && is_array( $conversation['labels'] ) ? $conversation['labels'] : [];
+        if ( empty( $conversation ) || !in_array( 'dt-sync', $labels, true ) ){
+            dt_write_log( 'Chatwoot conversation ' . $conversation_id . ' not found or not labelled dt-sync, skipping macro' );
+            return false;
+        }
+
+        $conversation['channel'] = $conversation['meta']['channel'] ?? null;
+        $conversation['trigger'] = true;
+        $params = Chat_Functions::format_params( $conversation );
+        if ( empty( $params['conversation_id'] ) || empty( $params['sender']['id'] ) ){
+            return false;
+        }
+        $params['account_id'] = $account_id;
+
+        return $params;
+    }
+
+    /**
+     * @param array $params
+     * @param bool $is_signed Whether Chatwoot's webhook signature was verified. Unsigned messages are re-fetched from Chatwoot.
+     */
+    private function handle_message_created( $params, $is_signed = false ) {
         if ( empty( $params['dt_conversation_id'] ) ) {
             dt_write_log( 'No conversation_id found in Chatwoot custom attributes, skipping message sync' );
             return;
         }
 
-        $dt_conversation_id = (int) $params['dt_conversation_id'];
-
-        // Verify the conversation exists in D.T
-        $handle = 'chatwoot_' . $params['account_id'] . '_' . $params['conversation_id'];
-        $exists = DT_Conversations_API::find_record_by_handle( $handle, true );
-
-        if ( is_wp_error( $exists ) || empty( $exists ) ) {
-            dt_write_log( 'Conversation ID ' . $dt_conversation_id . ' not found in D.T, skipping message sync' );
+        $account_id = Disciple_Tools_Chatwoot_API::get_account_id();
+        $conversation_id = absint( $params['conversation_id'] );
+        if ( empty( $account_id ) || empty( $conversation_id ) || intval( $params['account_id'] ) !== intval( $account_id ) ) {
             return;
         }
 
-        $this->add_message_to_conversation( $dt_conversation_id, $params['last_message'], $params['conversation_type'] );
+        // Verify the conversation exists in D.T
+        $handle = 'chatwoot_' . $account_id . '_' . $conversation_id;
+        $dt_conversation_id = (int) DT_Conversations_API::find_record_by_handle( $handle );
+
+        if ( empty( $dt_conversation_id ) ) {
+            dt_write_log( 'Conversation ' . $handle . ' not found in D.T, skipping message sync' );
+            return;
+        }
+
+        $message = $params['last_message'];
+        if ( !$is_signed ) {
+            $message = Disciple_Tools_Chatwoot_API::get_conversation_message( $account_id, $conversation_id, $message['id'] ?? 0 );
+            if ( empty( $message ) ) {
+                dt_write_log( 'Message not found in Chatwoot conversation ' . $conversation_id . ', skipping message sync' );
+                return;
+            }
+        }
+
+        $this->add_message_to_conversation( $dt_conversation_id, $message, $params['conversation_type'] );
 
         return true;
     }
