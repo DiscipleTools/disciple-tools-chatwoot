@@ -226,6 +226,44 @@ class Disciple_Tools_Chatwoot_API
         return $all_messages;
     }
 
+    public static function get_conversation_custom_attributes( $account_id, $conversation_id ) {
+        $chatwoot_url = self::get_chatwoot_url();
+        if ( empty( $chatwoot_url ) ){
+            dt_write_log( 'Chatwoot URL is not set' );
+            return false;
+        }
+
+        $chatwoot_api_key = self::get_chatwoot_api_key();
+        if ( empty( $chatwoot_api_key ) ){
+            dt_write_log( 'Chatwoot API key is not set' );
+            return false;
+        }
+
+        $api_url = $chatwoot_url . '/api/v1/accounts/' . intval( $account_id ) . '/conversations/' . intval( $conversation_id );
+
+        $response = wp_remote_get( $api_url, array(
+            'headers' => array(
+                'Content-Type' => 'application/json',
+                'api_access_token' => $chatwoot_api_key,
+            ),
+            'timeout' => 30
+        ));
+
+        if ( is_wp_error( $response ) ) {
+            dt_write_log( 'Error fetching Chatwoot conversation: ' . $response->get_error_message() );
+            return false;
+        }
+
+        $response_code = wp_remote_retrieve_response_code( $response );
+        if ( $response_code !== 200 ) {
+            dt_write_log( 'Failed to fetch Chatwoot conversation. Response code: ' . $response_code );
+            return false;
+        }
+
+        $data = json_decode( wp_remote_retrieve_body( $response ), true );
+        return isset( $data['custom_attributes'] ) && is_array( $data['custom_attributes'] ) ? $data['custom_attributes'] : array();
+    }
+
     public static function get_inbox_name( $account_id, $inbox_id ) {
         if ( empty( $account_id ) || empty( $inbox_id ) ) {
             return null;
