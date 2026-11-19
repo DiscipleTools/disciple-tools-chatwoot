@@ -171,7 +171,7 @@ class Disciple_Tools_Chatwoot_Endpoints
 
         $contact_key = $this->get_chatwoot_contact_key( $params );
         if ( in_array( $contact_key, get_post_meta( $contact_id, self::CHATWOOT_CONTACT_META ), true ) ) {
-            return $contact_id;
+            return $this->get_merged_contact_id( $contact_id );
         }
 
         $chatwoot_conversation_ids = Disciple_Tools_Chatwoot_API::get_contact_conversation_ids( $params['account_id'], $params['sender']['id'] ?? 0 );
@@ -184,12 +184,28 @@ class Disciple_Tools_Chatwoot_Endpoints
             $linked_contact_ids = is_wp_error( $dt_conversation ) ? [] : array_map( 'intval', array_column( $dt_conversation['contacts'] ?? [], 'ID' ) );
             if ( in_array( $contact_id, $linked_contact_ids, true ) ) {
                 add_post_meta( $contact_id, self::CHATWOOT_CONTACT_META, $contact_key );
-                return $contact_id;
+                return $this->get_merged_contact_id( $contact_id );
             }
         }
 
         dt_write_log( 'Chatwoot dt_contact_id ' . $contact_id . ' is not linked to Chatwoot contact ' . $contact_key . ', creating a new contact' );
         return 0;
+    }
+
+    /**
+     * D.T closes a merged duplicate with duplicate_of pointing at the contact that remains, so new chats go there.
+     */
+    private function get_merged_contact_id( $contact_id ) {
+        $seen = [];
+        while ( !in_array( $contact_id, $seen, true ) ) {
+            $seen[] = $contact_id;
+            $primary_id = intval( get_post_meta( $contact_id, 'duplicate_of', true ) );
+            if ( $primary_id <= 0 || get_post_type( $primary_id ) !== 'contacts' ) {
+                break;
+            }
+            $contact_id = $primary_id;
+        }
+        return $contact_id;
     }
 
     /**
