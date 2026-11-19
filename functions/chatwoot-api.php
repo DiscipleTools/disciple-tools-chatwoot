@@ -166,7 +166,6 @@ class Disciple_Tools_Chatwoot_API
         $all_messages = array();
         $before_id = null;
         $page = 1;
-        $max_pages = 100; // Safety limit to prevent infinite loops
 
         do {
             $api_url = $chatwoot_url . '/api/v1/accounts/' . $account_id . '/conversations/' . $conversation_id . '/messages';
@@ -218,11 +217,18 @@ class Disciple_Tools_Chatwoot_API
             }
 
             // Get the minimum ID (oldest message) for the next page
-            $before_id = !empty( $message_ids ) ? min( $message_ids ) : null;
+            $oldest_id = !empty( $message_ids ) ? min( $message_ids ) : null;
 
-            if ( $before_id === null ) {
+            if ( $oldest_id === null ) {
                 break;
             }
+
+            // Every page must reach further back than the one before, so the paging always ends.
+            if ( $before_id !== null && $oldest_id >= $before_id ) {
+                dt_write_log( 'Chatwoot returned a page that does not go further back in conversation ' . $conversation_id );
+                return false;
+            }
+            $before_id = $oldest_id;
 
             // If we got fewer than 20 messages, we've reached the end
             if ( count( $messages ) < 20 ) {
@@ -230,12 +236,6 @@ class Disciple_Tools_Chatwoot_API
             }
 
             $page++;
-
-            // Safety check to prevent infinite loops
-            if ( $page > $max_pages ) {
-                dt_write_log( 'Reached maximum page limit (' . $max_pages . ') when fetching conversation' );
-                break;
-            }
         } while ( true );
         if ( !empty( $all_messages ) ) {
             dt_write_log( 'Successfully fetched ' . count( $all_messages ) . ' messages across ' . $page . ' page(s) for conversation ' . $conversation_id );
