@@ -163,6 +163,8 @@ class Disciple_Tools_Chatwoot_Webhook_Security
         }
         $webhooks = isset( $webhooks['payload']['webhooks'] ) && is_array( $webhooks['payload']['webhooks'] ) ? $webhooks['payload']['webhooks'] : array();
         $secret = '';
+        // Chatwoot rejects two webhooks with the same URL, so once one has the token URL the others are removed.
+        $has_token_webhook = in_array( $webhook_url, array_column( $webhooks, 'url' ), true );
         foreach ( $webhooks as $webhook ) {
             $url = $webhook['url'] ?? '';
             if ( !is_string( $url ) || strpos( $url, $route_url ) !== 0 ) {
@@ -171,7 +173,15 @@ class Disciple_Tools_Chatwoot_Webhook_Security
                 }
                 continue;
             }
+            if ( $url !== $webhook_url && $has_token_webhook ) {
+                $deleted = self::request( 'DELETE', $api_base . '/webhooks/' . intval( $webhook['id'] ), $api_key );
+                if ( is_wp_error( $deleted ) ) {
+                    return self::sync_failed( 'Could not remove a duplicate Chatwoot webhook: ' . $deleted->get_error_message() );
+                }
+                continue;
+            }
             if ( $url !== $webhook_url ) {
+                $has_token_webhook = true;
                 $updated = self::request( 'PATCH', $api_base . '/webhooks/' . intval( $webhook['id'] ), $api_key, array(
                     'webhook' => array(
                         'url' => $webhook_url,
@@ -248,6 +258,9 @@ class Disciple_Tools_Chatwoot_Webhook_Security
         $response_body = wp_remote_retrieve_body( $response );
         if ( $response_code !== 200 ) {
             return new WP_Error( 'chatwoot_request_failed', 'HTTP ' . $response_code . ': ' . substr( wp_strip_all_tags( $response_body ), 0, 200 ) );
+        }
+        if ( $method === 'DELETE' ) {
+            return array();
         }
 
         $data = json_decode( $response_body, true );
