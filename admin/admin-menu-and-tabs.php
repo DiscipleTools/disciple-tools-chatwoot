@@ -473,8 +473,11 @@ class Disciple_Tools_Chatwoot_Tab_General {
                 }
             }
 
-            $settings['summarize_with_ai'] = isset( $post_vars['chatwoot-summarize-with-ai'] ) ? '1' : '0';
-            $settings['extract_contact_with_ai'] = isset( $post_vars['chatwoot-extract-contact-with-ai'] ) ? '1' : '0';
+            // The AI checkboxes are only on the main settings form, which is the form that carries the Chatwoot URL.
+            if ( isset( $post_vars['chatwoot-url'] ) ) {
+                $settings['summarize_with_ai'] = isset( $post_vars['chatwoot-summarize-with-ai'] ) ? '1' : '0';
+                $settings['extract_contact_with_ai'] = isset( $post_vars['chatwoot-extract-contact-with-ai'] ) ? '1' : '0';
+            }
 
             update_option( $token, $settings );
 
