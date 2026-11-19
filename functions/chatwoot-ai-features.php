@@ -13,6 +13,13 @@ class Disciple_Tools_Chatwoot_AI {
      *
      * @return array|WP_Error
      */
+    /**
+     * LLM calls follow the AI plugin's endpoint policy: https on a public address, unless its dt_ai_allowed_endpoint filter allows the endpoint.
+     */
+    private static function is_allowed_llm_endpoint( $url ) {
+        return method_exists( 'Disciple_Tools_AI_API', 'is_allowed_endpoint' ) && Disciple_Tools_AI_API::is_allowed_endpoint( $url );
+    }
+
     public static function summarize( array $conversation_messages, $conversation_post_id = null ) {
         if ( empty( $conversation_messages ) ) {
             return new WP_Error( 'empty_conversation', 'Conversation messages are required to generate a summary.', [ 'status' => 400 ] );
@@ -76,6 +83,9 @@ Only return the summary text itself—do not include headings, labels, or prefix
 
 
         $llm_endpoint = trailingslashit( $connection_settings['llm_endpoint'] ) . 'chat/completions';
+        if ( !self::is_allowed_llm_endpoint( $llm_endpoint ) ) {
+            return new WP_Error( 'llm_endpoint_not_allowed', 'The configured LLM endpoint is not allowed.', [ 'status' => 500 ] );
+        }
 
         $response = wp_remote_post( $llm_endpoint, [
             'method' => 'POST',
@@ -93,6 +103,7 @@ Only return the summary text itself—do not include headings, labels, or prefix
                 'temperature' => 0.3,
                 'top_p' => 1,
             ] ),
+            'redirection' => 0,
             'timeout' => 30,
         ] );
 
@@ -204,6 +215,9 @@ Rules:
         $user_prompt = $transcript . "\n\nReturn only the JSON object.";
 
         $llm_endpoint = trailingslashit( $connection_settings['llm_endpoint'] ) . 'chat/completions';
+        if ( !self::is_allowed_llm_endpoint( $llm_endpoint ) ) {
+            return new WP_Error( 'llm_endpoint_not_allowed', 'The configured LLM endpoint is not allowed.', [ 'status' => 500 ] );
+        }
 
         $response = wp_remote_post( $llm_endpoint, [
             'method' => 'POST',
@@ -221,6 +235,7 @@ Rules:
                 'temperature' => 0.2,
                 'top_p' => 1,
             ] ),
+            'redirection' => 0,
             'timeout' => 30,
         ] );
 
@@ -321,6 +336,9 @@ Only return the summary text itself—do not include headings, labels, or prefix
 ';
 
         $llm_endpoint = trailingslashit( $connection_settings['llm_endpoint'] ) . 'chat/completions';
+        if ( !self::is_allowed_llm_endpoint( $llm_endpoint ) ) {
+            return new WP_Error( 'llm_endpoint_not_allowed', 'The configured LLM endpoint is not allowed.', [ 'status' => 500 ] );
+        }
 
         $response = wp_remote_post( $llm_endpoint, [
             'method' => 'POST',
@@ -338,6 +356,7 @@ Only return the summary text itself—do not include headings, labels, or prefix
                 'temperature' => 0.3,
                 'top_p' => 1,
             ] ),
+            'redirection' => 0,
             'timeout' => 30,
         ] );
 

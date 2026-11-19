@@ -436,6 +436,10 @@ class Disciple_Tools_Chatwoot_Tab_General {
 
             if ( isset( $post_vars['chatwoot-url'] ) ) {
                 $new_url = esc_url_raw( $post_vars['chatwoot-url'] );
+                if ( $new_url !== '' && !Disciple_Tools_Chatwoot_API::is_allowed_url( $new_url ) ) {
+                    echo '<div class="notice notice-error"><p>' . esc_html__( 'The Chatwoot URL must start with https://. Settings were not saved.', 'disciple-tools-chatwoot' ) . '</p></div>';
+                    return;
+                }
                 // The stored API key is only ever sent to the host it was entered for.
                 if ( !empty( $settings['url'] ) && $this->get_url_origin( $new_url ) !== $this->get_url_origin( $settings['url'] ) ) {
                     unset( $settings['api_key'] );
@@ -642,6 +646,9 @@ class Disciple_Tools_Chatwoot_Tab_General {
         if ( empty( $chatwoot_url ) || empty( $chatwoot_api_key ) ) {
             return 'Missing Chatwoot URL or API key';
         }
+        if ( !Disciple_Tools_Chatwoot_API::is_allowed_url( $chatwoot_url ) ) {
+            return 'The Chatwoot URL must start with https://';
+        }
 
         // Get account ID - use stored value if available, otherwise fetch
         $account_id = isset( $settings['account_id'] ) && intval( $settings['account_id'] ) > 0
@@ -718,6 +725,7 @@ class Disciple_Tools_Chatwoot_Tab_General {
                 'api_access_token' => $api_key,
             ),
             'body' => json_encode( $data ),
+            'redirection' => 0,
             'timeout' => 30
         ));
 
@@ -771,6 +779,7 @@ class Disciple_Tools_Chatwoot_Tab_General {
                 'api_access_token' => $api_key,
             ),
             'body' => json_encode( $data ),
+            'redirection' => 0,
             'timeout' => 30
         ));
 
@@ -797,6 +806,7 @@ class Disciple_Tools_Chatwoot_Tab_General {
                 'Content-Type' => 'application/json',
                 'api_access_token' => $api_key,
             ),
+            'redirection' => 0,
             'timeout' => 30
         ));
 
@@ -864,6 +874,7 @@ class Disciple_Tools_Chatwoot_Tab_General {
                 'api_access_token' => $api_key,
             ),
             'body' => json_encode( $data ),
+            'redirection' => 0,
             'timeout' => 30
         ));
 
@@ -903,6 +914,7 @@ class Disciple_Tools_Chatwoot_Tab_General {
                 'api_access_token' => $api_key,
             ),
             'body' => json_encode( $data ),
+            'redirection' => 0,
             'timeout' => 30
         ));
 
@@ -942,6 +954,7 @@ class Disciple_Tools_Chatwoot_Tab_General {
                 'api_access_token' => $api_key,
             ),
             'body' => json_encode( $data ),
+            'redirection' => 0,
             'timeout' => 30
         ));
 

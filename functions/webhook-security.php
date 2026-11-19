@@ -111,7 +111,7 @@ class Disciple_Tools_Chatwoot_Webhook_Security
      */
     public static function sync_chatwoot() {
         $settings = self::get_settings();
-        $chatwoot_url = $settings['url'] ?? '';
+        $chatwoot_url = Disciple_Tools_Chatwoot_API::is_allowed_url( $settings['url'] ?? '' ) ? $settings['url'] : '';
         $api_key = $settings['api_key'] ?? '';
         $account_id = isset( $settings['account_id'] ) ? intval( $settings['account_id'] ) : 0;
 
@@ -209,6 +209,7 @@ class Disciple_Tools_Chatwoot_Webhook_Security
                 'Content-Type' => 'application/json',
                 'api_access_token' => $api_key,
             ),
+            'redirection' => 0,
             'timeout' => 30,
         );
         if ( $body !== null ) {

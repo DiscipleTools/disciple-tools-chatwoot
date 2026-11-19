@@ -7,7 +7,17 @@ class Disciple_Tools_Chatwoot_API
 
     private static function get_chatwoot_url() {
         $settings = get_option( 'dt_chatwoot', array() );
-        return isset( $settings['url'] ) ? $settings['url'] : '';
+        $url = isset( $settings['url'] ) ? $settings['url'] : '';
+        return self::is_allowed_url( $url ) ? $url : '';
+    }
+
+    /**
+     * Chatwoot is only contacted over https; private addresses are allowed for self-hosted instances.
+     */
+    public static function is_allowed_url( $url ) {
+        return is_string( $url )
+            && strtolower( (string) wp_parse_url( $url, PHP_URL_SCHEME ) ) === 'https'
+            && !empty( wp_parse_url( $url, PHP_URL_HOST ) );
     }
 
     private static function get_chatwoot_api_key() {
@@ -66,6 +76,7 @@ class Disciple_Tools_Chatwoot_API
                 'api_access_token' => $chatwoot_api_key,
             ),
             'body' => json_encode( $data ),
+            'redirection' => 0,
             'timeout' => 30
         ));
 
@@ -111,6 +122,7 @@ class Disciple_Tools_Chatwoot_API
                 'api_access_token' => $chatwoot_api_key,
             ),
             'body' => json_encode( $data ),
+            'redirection' => 0,
             'timeout' => 30
         ));
 
@@ -163,6 +175,7 @@ class Disciple_Tools_Chatwoot_API
 
             $response = wp_remote_get( $api_url, array(
                 'headers' => $headers,
+                'redirection' => 0,
                 'timeout' => 30
             ));
 
@@ -248,6 +261,7 @@ class Disciple_Tools_Chatwoot_API
                 'Content-Type' => 'application/json',
                 'api_access_token' => $chatwoot_api_key,
             ),
+            'redirection' => 0,
             'timeout' => 30
         ));
 
@@ -279,6 +293,7 @@ class Disciple_Tools_Chatwoot_API
                 'Content-Type' => 'application/json',
                 'api_access_token' => $chatwoot_api_key,
             ),
+            'redirection' => 0,
             'timeout' => 30
         ));
 
@@ -370,6 +385,7 @@ class Disciple_Tools_Chatwoot_API
                 'Content-Type' => 'application/json',
                 'api_access_token' => $chatwoot_api_key,
             ),
+            'redirection' => 0,
             'timeout' => 30
         ));
 
@@ -471,7 +487,7 @@ class Disciple_Tools_Chatwoot_API
             $api_key = self::get_chatwoot_api_key();
         }
 
-        if ( empty( $chatwoot_url ) || empty( $api_key ) ) {
+        if ( empty( $chatwoot_url ) || empty( $api_key ) || !self::is_allowed_url( $chatwoot_url ) ) {
             return array();
         }
 
@@ -482,6 +498,7 @@ class Disciple_Tools_Chatwoot_API
                 'Content-Type' => 'application/json',
                 'api_access_token' => $api_key,
             ),
+            'redirection' => 0,
             'timeout' => 30
         ));
 
@@ -533,6 +550,7 @@ class Disciple_Tools_Chatwoot_API
                 'Content-Type' => 'application/json',
                 'api_access_token' => $chatwoot_api_key,
             ),
+            'redirection' => 0,
             'timeout' => 30,
         ) );
 
