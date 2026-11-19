@@ -562,7 +562,9 @@ class Disciple_Tools_Chatwoot_Endpoints
             $comment_args['comment_meta'] = [ self::CHATWOOT_MESSAGE_META => $message_id ];
         }
 
-        // Create comment on D.T conversation with the appropriate type
+        // Create comment on D.T conversation with the appropriate type. A failed query is logged with its values, which here are people's messages.
+        global $wpdb;
+        $suppress_errors = $wpdb->suppress_errors( true );
         $result = DT_Posts::add_post_comment(
             'conversations',
             $dt_conversation_id,
@@ -572,6 +574,7 @@ class Disciple_Tools_Chatwoot_Endpoints
             false,
             true
         );
+        $wpdb->suppress_errors( $suppress_errors );
 
         if ( is_wp_error( $result ) ) {
             dt_write_log( 'Failed to add comment to conversation ' . $dt_conversation_id . ': ' . $result->get_error_message() );
