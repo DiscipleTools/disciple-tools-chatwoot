@@ -300,6 +300,26 @@ class Disciple_Tools_Chatwoot_API
     }
 
     /**
+     * @return int[] ids of the conversations Chatwoot holds for a contact.
+     */
+    public static function get_contact_conversation_ids( $account_id, $contact_id ) {
+        $contact_id = intval( $contact_id );
+        if ( $contact_id <= 0 ) {
+            return array();
+        }
+
+        $data = self::get_json( '/api/v1/accounts/' . intval( $account_id ) . '/contacts/' . $contact_id . '/conversations' );
+        $conversations = isset( $data['payload'] ) && is_array( $data['payload'] ) ? $data['payload'] : array();
+        $ids = array();
+        foreach ( $conversations as $conversation ) {
+            if ( isset( $conversation['id'] ) && intval( $conversation['id'] ) > 0 ) {
+                $ids[] = intval( $conversation['id'] );
+            }
+        }
+        return $ids;
+    }
+
+    /**
      * Find a message among the newest page of a conversation's messages.
      */
     public static function get_conversation_message( $account_id, $conversation_id, $message_id ) {

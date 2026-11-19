@@ -3,6 +3,9 @@ if ( !defined( 'ABSPATH' ) ) { exit; } // Exit if accessed directly.
 
 class Disciple_Tools_Chatwoot_Endpoints
 {
+    // Postmeta on a D.T contact holding "<account id>_<Chatwoot contact id>" for each Chatwoot contact mapped to it.
+    const CHATWOOT_CONTACT_META = 'chatwoot_contact';
+
     public function __construct() {
         add_action( 'rest_api_init', [ $this, 'add_api_routes' ] );
     }
@@ -75,7 +78,7 @@ class Disciple_Tools_Chatwoot_Endpoints
             return;
         }
 
-        $contact_id = $params['dt_contact_id'];
+        $contact_id = $this->get_linked_contact_id( $params );
         $full_conversation = [];
 
         if ( empty( $contact_id ) ){
@@ -96,6 +99,7 @@ class Disciple_Tools_Chatwoot_Endpoints
 
             $contact_id = $contact['ID'];
             $contact_url = $contact['permalink'];
+            add_post_meta( $contact_id, self::CHATWOOT_CONTACT_META, $this->get_chatwoot_contact_key( $params ) );
             Disciple_Tools_Chatwoot_API::set_contact_attributes(
                 [ 'dt_contact_id' => $contact_id, 'dt_contact_url' => $contact_url ],
                 $params['account_id'],
@@ -148,6 +152,43 @@ class Disciple_Tools_Chatwoot_Endpoints
             );
         }
         return true;
+    }
+
+    private function get_chatwoot_contact_key( $params ) {
+        return intval( $params['account_id'] ) . '_' . intval( $params['sender']['id'] ?? 0 );
+    }
+
+    /**
+     * The Chatwoot dt_contact_id attribute is editable by the chat visitor, so it is only trusted when the
+     * D.T contact is mapped to this Chatwoot contact, or is already linked to one of its conversations.
+     */
+    private function get_linked_contact_id( $params ) {
+        $contact_id = intval( $params['dt_contact_id'] ?? 0 );
+        if ( $contact_id <= 0 || get_post_type( $contact_id ) !== 'contacts' ) {
+            return 0;
+        }
+
+        $contact_key = $this->get_chatwoot_contact_key( $params );
+        if ( in_array( $contact_key, get_post_meta( $contact_id, self::CHATWOOT_CONTACT_META ), true ) ) {
+            return $contact_id;
+        }
+
+        $chatwoot_conversation_ids = Disciple_Tools_Chatwoot_API::get_contact_conversation_ids( $params['account_id'], $params['sender']['id'] ?? 0 );
+        foreach ( $chatwoot_conversation_ids as $chatwoot_conversation_id ) {
+            $dt_conversation_id = (int) DT_Conversations_API::find_record_by_handle( 'chatwoot_' . intval( $params['account_id'] ) . '_' . $chatwoot_conversation_id );
+            if ( empty( $dt_conversation_id ) ) {
+                continue;
+            }
+            $dt_conversation = DT_Posts::get_post( 'conversations', $dt_conversation_id, true, false );
+            $linked_contact_ids = is_wp_error( $dt_conversation ) ? [] : array_map( 'intval', array_column( $dt_conversation['contacts'] ?? [], 'ID' ) );
+            if ( in_array( $contact_id, $linked_contact_ids, true ) ) {
+                add_post_meta( $contact_id, self::CHATWOOT_CONTACT_META, $contact_key );
+                return $contact_id;
+            }
+        }
+
+        dt_write_log( 'Chatwoot dt_contact_id ' . $contact_id . ' is not linked to Chatwoot contact ' . $contact_key . ', creating a new contact' );
+        return 0;
     }
 
     /**
