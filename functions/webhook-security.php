@@ -131,6 +131,7 @@ class Disciple_Tools_Chatwoot_Webhook_Security
             return self::sync_failed( 'Could not list Chatwoot macros: ' . $macros->get_error_message() );
         }
         $macros = isset( $macros['payload'] ) && is_array( $macros['payload'] ) ? $macros['payload'] : array();
+        $elsewhere_urls = array();
         foreach ( $macros as $macro ) {
             $actions = isset( $macro['actions'] ) && is_array( $macro['actions'] ) ? $macro['actions'] : array();
             $changed = false;
@@ -139,6 +140,8 @@ class Disciple_Tools_Chatwoot_Webhook_Security
                 if ( ( $action['action_name'] ?? '' ) === 'send_webhook_event' && is_string( $url ) && strpos( $url, $route_url ) === 0 && $url !== $macro_url ) {
                     $actions[ $index ]['action_params'][0] = $macro_url;
                     $changed = true;
+                } elseif ( ( $action['action_name'] ?? '' ) === 'send_webhook_event' && self::is_sync_route_elsewhere( $url, $route_url ) ) {
+                    $elsewhere_urls[] = strtok( $url, '?' );
                 }
             }
             if ( !$changed ) {
@@ -163,6 +166,9 @@ class Disciple_Tools_Chatwoot_Webhook_Security
         foreach ( $webhooks as $webhook ) {
             $url = $webhook['url'] ?? '';
             if ( !is_string( $url ) || strpos( $url, $route_url ) !== 0 ) {
+                if ( self::is_sync_route_elsewhere( $url, $route_url ) ) {
+                    $elsewhere_urls[] = strtok( $url, '?' );
+                }
                 continue;
             }
             if ( $url !== $webhook_url ) {
@@ -181,6 +187,14 @@ class Disciple_Tools_Chatwoot_Webhook_Security
             }
         }
 
+        if ( !empty( $elsewhere_urls ) ) {
+            return self::sync_failed( sprintf(
+                'Chatwoot calls this site at %1$s, which would be rejected once the token is required. Change it in Chatwoot to start with %2$s.',
+                implode( ', ', array_unique( $elsewhere_urls ) ),
+                $route_url
+            ) );
+        }
+
         $settings = self::get_settings();
         $settings['webhook_token_enforced'] = true;
         if ( $secret !== '' ) {
@@ -193,6 +207,15 @@ class Disciple_Tools_Chatwoot_Webhook_Security
         set_transient( self::SYNC_TRANSIENT, 1, 12 * HOUR_IN_SECONDS );
         delete_transient( self::SYNC_ERROR_TRANSIENT );
         return true;
+    }
+
+    /**
+     * A URL to this site's sync route through another host or scheme gets no token from the sync and would be rejected.
+     */
+    private static function is_sync_route_elsewhere( $url, $route_url ) {
+        return is_string( $url )
+            && strpos( $url, $route_url ) !== 0
+            && wp_parse_url( $url, PHP_URL_PATH ) === wp_parse_url( $route_url, PHP_URL_PATH );
     }
 
     private static function sync_failed( $message ) {
