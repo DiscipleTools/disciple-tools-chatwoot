@@ -26,7 +26,7 @@ jobs:
       - name: Build project
         run: |
           mkdir disciple-tools-chatwoot
-          cp -r disciple-tools-chatwoot.php admin languages functions site-link version-control.json LICENSE SECURITY.md disciple-tools-chatwoot/
+          cp -r disciple-tools-chatwoot.php admin languages functions version-control.json LICENSE SECURITY.md disciple-tools-chatwoot/
           zip -r disciple-tools-chatwoot.zip disciple-tools-chatwoot
       - name: Create Release
         env:

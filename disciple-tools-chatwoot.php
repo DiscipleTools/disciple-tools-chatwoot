@@ -89,11 +89,18 @@ class Disciple_Tools_Chatwoot {
         require_once( 'functions/chat-functions.php' ); // shared data helpers
         require_once( 'functions/chatwoot-rest-api.php' ); // adds starter rest api class
         require_once( 'functions/chatwoot-api.php' ); // adds starter rest api class
+        require_once( 'functions/webhook-security.php' ); // authenticates Chatwoot webhook requests
         require_once( 'functions/conversations-setup.php' ); // adds additional conversation types for Chatwoot
         require_once( 'functions/chatwoot-ai-features.php' ); // adds AI features for Chatwoot
         require_once( 'functions/conversation-tile.php' ); // adds Chatwoot tile to conversation records
 
-        require_once( 'site-link/custom-site-to-site-links.php' ); // add site to site link class and capabilities
+        try {
+            require_once( 'functions/class-migration-engine.php' );
+            DT_Chatwoot_Migration_Engine::migrate( DT_Chatwoot_Migration_Engine::$migration_number );
+        } catch ( Throwable $e ) {
+            new WP_Error( 'migration_error', 'Migration engine failed to migrate.' );
+        }
+        DT_Chatwoot_Migration_Engine::display_migration_and_lock();
 
         if ( is_admin() ) {
             require_once( 'admin/admin-menu-and-tabs.php' ); // adds starter admin page and section for plugin

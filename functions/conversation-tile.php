@@ -263,16 +263,17 @@ class Disciple_Tools_Chatwoot_Conversation_Tile {
     public function resync_conversation( WP_REST_Request $request ) {
         $params = $request->get_params();
 
-        if ( !isset( $params['conversation_id'], $params['account_id'], $params['chatwoot_conversation_id'] ) ) {
+        if ( !isset( $params['conversation_id'] ) ) {
             return new WP_Error( 'missing_params', __( 'Missing required parameters', 'disciple-tools-chatwoot' ), [ 'status' => 400 ] );
         }
 
         $dt_conversation_id = intval( $params['conversation_id'] );
-        $account_id = intval( $params['account_id'] );
-        $chatwoot_conversation_id = intval( $params['chatwoot_conversation_id'] );
 
         // Verify the conversation exists and user has access
-        $conversation = DT_Posts::get_post( 'conversations', $dt_conversation_id, true, false );
+        if ( get_post_type( $dt_conversation_id ) !== 'conversations' || !DT_Posts::can_update( 'conversations', $dt_conversation_id ) ) {
+            return new WP_Error( 'no_permission', __( 'You do not have permission to re-sync this conversation', 'disciple-tools-chatwoot' ), [ 'status' => 403 ] );
+        }
+        $conversation = DT_Posts::get_post( 'conversations', $dt_conversation_id );
         if ( is_wp_error( $conversation ) ) {
             return $conversation;
         }
@@ -280,6 +281,26 @@ class Disciple_Tools_Chatwoot_Conversation_Tile {
         // Fetch full conversation from Chatwoot
         if ( !class_exists( 'Disciple_Tools_Chatwoot_API' ) ) {
             return new WP_Error( 'api_class_missing', __( 'Chatwoot API class not found', 'disciple-tools-chatwoot' ), [ 'status' => 500 ] );
+        }
+
+        // The Chatwoot ids come from the record handle (format: chatwoot_{account_id}_{conversation_id}), never from the request
+        $handle_parts = explode( '_', $conversation['name'] ?? '' );
+        if ( count( $handle_parts ) !== 3 || $handle_parts[0] !== 'chatwoot' ) {
+            return new WP_Error( 'not_chatwoot', __( 'This is not a Chatwoot conversation', 'disciple-tools-chatwoot' ), [ 'status' => 400 ] );
+        }
+        $account_id = intval( $handle_parts[1] );
+        $chatwoot_conversation_id = intval( $handle_parts[2] );
+        if ( $account_id !== intval( Disciple_Tools_Chatwoot_API::get_account_id() ) ) {
+            return new WP_Error( 'no_permission', __( 'This record is not linked to that Chatwoot conversation', 'disciple-tools-chatwoot' ), [ 'status' => 403 ] );
+        }
+
+        // The handle is user-editable, so also require the Chatwoot conversation to point back at this record
+        $chatwoot_attributes = Disciple_Tools_Chatwoot_API::get_conversation_custom_attributes( $account_id, $chatwoot_conversation_id );
+        if ( !is_array( $chatwoot_attributes ) ) {
+            return new WP_Error( 'fetch_failed', __( 'Could not reach Chatwoot to check this conversation', 'disciple-tools-chatwoot' ), [ 'status' => 502 ] );
+        }
+        if ( intval( $chatwoot_attributes['dt_conversation_id'] ?? 0 ) !== $dt_conversation_id ) {
+            return new WP_Error( 'no_permission', __( 'This record is not linked to that Chatwoot conversation', 'disciple-tools-chatwoot' ), [ 'status' => 403 ] );
         }
 
         $messages = Disciple_Tools_Chatwoot_API::get_full_conversation( $account_id, $chatwoot_conversation_id );
@@ -296,20 +317,26 @@ class Disciple_Tools_Chatwoot_Conversation_Tile {
             ];
         }
 
-        // Delete existing comments for this conversation
-        global $wpdb;
-        $deleted = $wpdb->delete(
-            $wpdb->comments,
-            [ 'comment_post_ID' => $dt_conversation_id ],
-            [ '%d' ]
-        );
-
-        if ( $deleted === false ) {
-            dt_write_log( 'Failed to delete existing comments for conversation ' . $dt_conversation_id );
-        }
-
         // Get conversation type from the conversation record
         $conversation_type = isset( $conversation['type']['key'] ) ? $conversation['type']['key'] : 'chatwoot';
+
+        // Replace only the messages imported from Chatwoot (no D.T user, the record's type); notes written by D.T users stay.
+        global $wpdb;
+        $wpdb->query( 'START TRANSACTION' );
+        $imported_ids = array_map( 'intval', $wpdb->get_col( $wpdb->prepare(
+            "SELECT comment_ID FROM $wpdb->comments WHERE comment_post_ID = %d AND comment_type = %s AND user_id = 0",
+            $dt_conversation_id,
+            $conversation_type
+        ) ) );
+        if ( !empty( $imported_ids ) ) {
+            $ids_sql = implode( ',', $imported_ids );
+            $meta_deleted = $wpdb->query( "DELETE FROM $wpdb->commentmeta WHERE comment_id IN ( $ids_sql )" ); // @phpcs:ignore
+            $comments_deleted = $wpdb->query( "DELETE FROM $wpdb->comments WHERE comment_ID IN ( $ids_sql )" ); // @phpcs:ignore
+            if ( $meta_deleted === false || $comments_deleted === false ) {
+                $wpdb->query( 'ROLLBACK' );
+                return new WP_Error( 'delete_failed', __( 'Failed to replace the messages of this conversation', 'disciple-tools-chatwoot' ), [ 'status' => 500 ] );
+            }
+        }
 
         // Re-insert all messages using bulk insert
         $endpoints_class = new Disciple_Tools_Chatwoot_Endpoints();
@@ -319,8 +346,11 @@ class Disciple_Tools_Chatwoot_Conversation_Tile {
         $result = $method->invoke( $endpoints_class, $messages, $dt_conversation_id, $conversation_type );
 
         if ( is_wp_error( $result ) ) {
+            $wpdb->query( 'ROLLBACK' );
             return $result;
         }
+        $wpdb->query( 'COMMIT' );
+        clean_comment_cache( $imported_ids );
 
         return [
             'success' => true,

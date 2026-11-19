@@ -75,11 +75,22 @@ if ( ! class_exists( 'Chat_Functions' ) ) {
                 $formatted_params['labels'] = $params['conversation']['labels'] ?? null;
             }
 
-            if ( ! empty( $formatted_params['account_id'] ) && ! empty( $formatted_params['inbox_id'] ) ) {
-                $formatted_params['inbox_name'] = Disciple_Tools_Chatwoot_API::get_inbox_name( $formatted_params['account_id'], $formatted_params['inbox_id'] );
-            }
-
             return $formatted_params;
+        }
+
+        /**
+         * Chat text comes from outside the team, so "![alt](url)" must not render as an image that loads when a D.T user
+         * opens the record. Breaking the "![" pair leaves it as a link that needs a click.
+         */
+        public static function disable_markdown_images( $text ) {
+            return str_replace( '![', '! [', (string) $text );
+        }
+
+        /**
+         * D.T notifies and emails any user named in "@[name](user id)", so text from outside the team must not form that pair.
+         */
+        public static function disable_mentions( $text ) {
+            return str_replace( '@[', '@ [', (string) $text );
         }
 
         /**

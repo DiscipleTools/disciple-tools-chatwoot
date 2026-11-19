@@ -6,6 +6,13 @@ if ( ! defined( 'ABSPATH' ) ) {
 class Disciple_Tools_Chatwoot_AI {
 
     /**
+     * LLM calls follow the AI plugin's endpoint policy: https on a public address, unless its dt_ai_allowed_endpoint filter allows the endpoint.
+     */
+    private static function is_allowed_llm_endpoint( $url ) {
+        return method_exists( 'Disciple_Tools_AI_API', 'is_allowed_endpoint' ) && Disciple_Tools_AI_API::is_allowed_endpoint( $url );
+    }
+
+    /**
      * Create a summary from a full Chatwoot conversation transcript.
      *
      * @param array $conversation_messages Array of message payloads returned from Chatwoot.
@@ -38,7 +45,8 @@ Only return the summary text itself—do not include headings, labels, or prefix
 
         $transcript = "Conversation Transcript:\n";
         foreach ( $conversation_messages as $message ) {
-            if ( empty( $message['content'] ) ) {
+            // Chatwoot private notes are internal to the Chatwoot team and never leave it.
+            if ( empty( $message['content'] ) || !empty( $message['private'] ) ) {
                 continue;
             }
 
@@ -76,6 +84,9 @@ Only return the summary text itself—do not include headings, labels, or prefix
 
 
         $llm_endpoint = trailingslashit( $connection_settings['llm_endpoint'] ) . 'chat/completions';
+        if ( !self::is_allowed_llm_endpoint( $llm_endpoint ) ) {
+            return new WP_Error( 'llm_endpoint_not_allowed', 'The configured LLM endpoint is not allowed.', [ 'status' => 500 ] );
+        }
 
         $response = wp_remote_post( $llm_endpoint, [
             'method' => 'POST',
@@ -93,6 +104,7 @@ Only return the summary text itself—do not include headings, labels, or prefix
                 'temperature' => 0.3,
                 'top_p' => 1,
             ] ),
+            'redirection' => 0,
             'timeout' => 30,
         ] );
 
@@ -146,7 +158,8 @@ Only return the summary text itself—do not include headings, labels, or prefix
 
         $transcript = "Conversation Transcript:\n";
         foreach ( $conversation_messages as $message ) {
-            if ( empty( $message['content'] ) ) {
+            // Chatwoot private notes are internal to the Chatwoot team and never leave it.
+            if ( empty( $message['content'] ) || !empty( $message['private'] ) ) {
                 continue;
             }
 
@@ -204,6 +217,9 @@ Rules:
         $user_prompt = $transcript . "\n\nReturn only the JSON object.";
 
         $llm_endpoint = trailingslashit( $connection_settings['llm_endpoint'] ) . 'chat/completions';
+        if ( !self::is_allowed_llm_endpoint( $llm_endpoint ) ) {
+            return new WP_Error( 'llm_endpoint_not_allowed', 'The configured LLM endpoint is not allowed.', [ 'status' => 500 ] );
+        }
 
         $response = wp_remote_post( $llm_endpoint, [
             'method' => 'POST',
@@ -221,6 +237,7 @@ Rules:
                 'temperature' => 0.2,
                 'top_p' => 1,
             ] ),
+            'redirection' => 0,
             'timeout' => 30,
         ] );
 
@@ -321,6 +338,9 @@ Only return the summary text itself—do not include headings, labels, or prefix
 ';
 
         $llm_endpoint = trailingslashit( $connection_settings['llm_endpoint'] ) . 'chat/completions';
+        if ( !self::is_allowed_llm_endpoint( $llm_endpoint ) ) {
+            return new WP_Error( 'llm_endpoint_not_allowed', 'The configured LLM endpoint is not allowed.', [ 'status' => 500 ] );
+        }
 
         $response = wp_remote_post( $llm_endpoint, [
             'method' => 'POST',
@@ -338,6 +358,7 @@ Only return the summary text itself—do not include headings, labels, or prefix
                 'temperature' => 0.3,
                 'top_p' => 1,
             ] ),
+            'redirection' => 0,
             'timeout' => 30,
         ] );
 

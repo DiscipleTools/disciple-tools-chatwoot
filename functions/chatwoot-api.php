@@ -3,9 +3,21 @@ if ( !defined( 'ABSPATH' ) ) { exit; } // Exit if accessed directly.
 
 class Disciple_Tools_Chatwoot_API
 {
+    const INBOX_NAMES_OPTION = 'dt_chatwoot_inbox_names';
+
     private static function get_chatwoot_url() {
         $settings = get_option( 'dt_chatwoot', array() );
-        return isset( $settings['url'] ) ? $settings['url'] : '';
+        $url = isset( $settings['url'] ) ? $settings['url'] : '';
+        return self::is_allowed_url( $url ) ? $url : '';
+    }
+
+    /**
+     * Chatwoot is only contacted over https; private addresses are allowed for self-hosted instances.
+     */
+    public static function is_allowed_url( $url ) {
+        return is_string( $url )
+            && strtolower( (string) wp_parse_url( $url, PHP_URL_SCHEME ) ) === 'https'
+            && !empty( wp_parse_url( $url, PHP_URL_HOST ) );
     }
 
     private static function get_chatwoot_api_key() {
@@ -25,7 +37,7 @@ class Disciple_Tools_Chatwoot_API
             return (bool) $settings['summarize_with_ai'];
         }
 
-        return true;
+        return false;
     }
 
     public static function is_extract_contact_with_ai_enabled() {
@@ -35,7 +47,7 @@ class Disciple_Tools_Chatwoot_API
             return (bool) $settings['extract_contact_with_ai'];
         }
 
-        return true;
+        return false;
     }
 
     public static function set_contact_attributes( $attributes, $account_id, $contact_id ) {
@@ -64,6 +76,7 @@ class Disciple_Tools_Chatwoot_API
                 'api_access_token' => $chatwoot_api_key,
             ),
             'body' => json_encode( $data ),
+            'redirection' => 0,
             'timeout' => 30
         ));
 
@@ -109,6 +122,7 @@ class Disciple_Tools_Chatwoot_API
                 'api_access_token' => $chatwoot_api_key,
             ),
             'body' => json_encode( $data ),
+            'redirection' => 0,
             'timeout' => 30
         ));
 
@@ -128,6 +142,9 @@ class Disciple_Tools_Chatwoot_API
         return true;
     }
 
+    /**
+     * @return array|false Every message of the conversation, or false if any page could not be fetched.
+     */
     public static function get_full_conversation( $account_id, $conversation_id ) {
         $chatwoot_url = self::get_chatwoot_url();
         if ( empty( $chatwoot_url ) ){
@@ -149,7 +166,6 @@ class Disciple_Tools_Chatwoot_API
         $all_messages = array();
         $before_id = null;
         $page = 1;
-        $max_pages = 100; // Safety limit to prevent infinite loops
 
         do {
             $api_url = $chatwoot_url . '/api/v1/accounts/' . $account_id . '/conversations/' . $conversation_id . '/messages';
@@ -161,18 +177,19 @@ class Disciple_Tools_Chatwoot_API
 
             $response = wp_remote_get( $api_url, array(
                 'headers' => $headers,
+                'redirection' => 0,
                 'timeout' => 30
             ));
 
             if ( is_wp_error( $response ) ) {
                 dt_write_log( 'Error fetching conversation (page ' . $page . '): ' . $response->get_error_message() );
-                break;
+                return false;
             }
 
             $response_code = wp_remote_retrieve_response_code( $response );
             if ( $response_code !== 200 ) {
                 dt_write_log( 'Failed to fetch conversation (page ' . $page . '). Response code: ' . $response_code );
-                break;
+                return false;
             }
 
             $body = wp_remote_retrieve_body( $response );
@@ -180,7 +197,7 @@ class Disciple_Tools_Chatwoot_API
 
             if ( json_last_error() !== JSON_ERROR_NONE ) {
                 dt_write_log( 'Error decoding JSON response (page ' . $page . '): ' . json_last_error_msg() );
-                break;
+                return false;
             }
 
             $messages = isset( $data['payload'] ) && is_array( $data['payload'] ) ? $data['payload'] : array();
@@ -200,11 +217,18 @@ class Disciple_Tools_Chatwoot_API
             }
 
             // Get the minimum ID (oldest message) for the next page
-            $before_id = !empty( $message_ids ) ? min( $message_ids ) : null;
+            $oldest_id = !empty( $message_ids ) ? min( $message_ids ) : null;
 
-            if ( $before_id === null ) {
+            if ( $oldest_id === null ) {
                 break;
             }
+
+            // Every page must reach further back than the one before, so the paging always ends.
+            if ( $before_id !== null && $oldest_id >= $before_id ) {
+                dt_write_log( 'Chatwoot returned a page that does not go further back in conversation ' . $conversation_id );
+                return false;
+            }
+            $before_id = $oldest_id;
 
             // If we got fewer than 20 messages, we've reached the end
             if ( count( $messages ) < 20 ) {
@@ -212,12 +236,6 @@ class Disciple_Tools_Chatwoot_API
             }
 
             $page++;
-
-            // Safety check to prevent infinite loops
-            if ( $page > $max_pages ) {
-                dt_write_log( 'Reached maximum page limit (' . $max_pages . ') when fetching conversation' );
-                break;
-            }
         } while ( true );
         if ( !empty( $all_messages ) ) {
             dt_write_log( 'Successfully fetched ' . count( $all_messages ) . ' messages across ' . $page . ' page(s) for conversation ' . $conversation_id );
@@ -226,14 +244,133 @@ class Disciple_Tools_Chatwoot_API
         return $all_messages;
     }
 
+    public static function get_conversation_custom_attributes( $account_id, $conversation_id ) {
+        $chatwoot_url = self::get_chatwoot_url();
+        if ( empty( $chatwoot_url ) ){
+            dt_write_log( 'Chatwoot URL is not set' );
+            return false;
+        }
+
+        $chatwoot_api_key = self::get_chatwoot_api_key();
+        if ( empty( $chatwoot_api_key ) ){
+            dt_write_log( 'Chatwoot API key is not set' );
+            return false;
+        }
+
+        $api_url = $chatwoot_url . '/api/v1/accounts/' . intval( $account_id ) . '/conversations/' . intval( $conversation_id );
+
+        $response = wp_remote_get( $api_url, array(
+            'headers' => array(
+                'Content-Type' => 'application/json',
+                'api_access_token' => $chatwoot_api_key,
+            ),
+            'redirection' => 0,
+            'timeout' => 30
+        ));
+
+        if ( is_wp_error( $response ) ) {
+            dt_write_log( 'Error fetching Chatwoot conversation: ' . $response->get_error_message() );
+            return false;
+        }
+
+        $response_code = wp_remote_retrieve_response_code( $response );
+        if ( $response_code === 404 ) {
+            return array();
+        }
+        if ( $response_code !== 200 ) {
+            dt_write_log( 'Failed to fetch Chatwoot conversation. Response code: ' . $response_code );
+            return false;
+        }
+
+        $data = json_decode( wp_remote_retrieve_body( $response ), true );
+        return isset( $data['custom_attributes'] ) && is_array( $data['custom_attributes'] ) ? $data['custom_attributes'] : array();
+    }
+
+    private static function get_json( $api_path ) {
+        $chatwoot_url = self::get_chatwoot_url();
+        $chatwoot_api_key = self::get_chatwoot_api_key();
+        if ( empty( $chatwoot_url ) || empty( $chatwoot_api_key ) ){
+            dt_write_log( 'Chatwoot URL or API key is not set' );
+            return false;
+        }
+
+        $response = wp_remote_get( $chatwoot_url . $api_path, array(
+            'headers' => array(
+                'Content-Type' => 'application/json',
+                'api_access_token' => $chatwoot_api_key,
+            ),
+            'redirection' => 0,
+            'timeout' => 30
+        ));
+
+        if ( is_wp_error( $response ) ) {
+            dt_write_log( 'Error fetching ' . $api_path . ': ' . $response->get_error_message() );
+            return false;
+        }
+
+        $response_code = wp_remote_retrieve_response_code( $response );
+        if ( $response_code !== 200 ) {
+            dt_write_log( 'Failed to fetch ' . $api_path . '. Response code: ' . $response_code );
+            return false;
+        }
+
+        $data = json_decode( wp_remote_retrieve_body( $response ), true );
+        return is_array( $data ) ? $data : false;
+    }
+
+    public static function get_conversation( $account_id, $conversation_id ) {
+        return self::get_json( '/api/v1/accounts/' . intval( $account_id ) . '/conversations/' . intval( $conversation_id ) );
+    }
+
+    /**
+     * @return int[] ids of the conversations Chatwoot holds for a contact.
+     */
+    public static function get_contact_conversation_ids( $account_id, $contact_id ) {
+        $contact_id = intval( $contact_id );
+        if ( $contact_id <= 0 ) {
+            return array();
+        }
+
+        $data = self::get_json( '/api/v1/accounts/' . intval( $account_id ) . '/contacts/' . $contact_id . '/conversations' );
+        $conversations = isset( $data['payload'] ) && is_array( $data['payload'] ) ? $data['payload'] : array();
+        $ids = array();
+        foreach ( $conversations as $conversation ) {
+            if ( isset( $conversation['id'] ) && intval( $conversation['id'] ) > 0 ) {
+                $ids[] = intval( $conversation['id'] );
+            }
+        }
+        return $ids;
+    }
+
+    /**
+     * Find a message in a conversation. Chatwoot returns the page of messages older than "before", so asking for
+     * the page before the next id returns the page that ends with this message.
+     */
+    public static function get_conversation_message( $account_id, $conversation_id, $message_id ) {
+        $message_id = intval( $message_id );
+        if ( $message_id <= 0 ) {
+            return false;
+        }
+
+        $data = self::get_json( '/api/v1/accounts/' . intval( $account_id ) . '/conversations/' . intval( $conversation_id ) . '/messages?before=' . ( $message_id + 1 ) );
+        $messages = isset( $data['payload'] ) && is_array( $data['payload'] ) ? $data['payload'] : array();
+        foreach ( $messages as $message ) {
+            if ( isset( $message['id'] ) && intval( $message['id'] ) === $message_id ) {
+                return $message;
+            }
+        }
+        return false;
+    }
+
     public static function get_inbox_name( $account_id, $inbox_id ) {
-        if ( empty( $account_id ) || empty( $inbox_id ) ) {
+        $inbox_id = intval( $inbox_id );
+        if ( empty( $account_id ) || $inbox_id <= 0 ) {
             return null;
         }
 
-        $settings = get_option( 'dt_chatwoot', array() );
-        if ( isset( $settings['inbox_names'][ $inbox_id ] ) && !empty( $settings['inbox_names'][ $inbox_id ] ) ) {
-            return $settings['inbox_names'][ $inbox_id ];
+        $inbox_names = self::get_cached_inbox_names();
+        if ( !empty( $inbox_names[ $inbox_id ] ) ) {
+            return $inbox_names[ $inbox_id ];
         }
 
         $chatwoot_url = self::get_chatwoot_url();
@@ -248,13 +385,14 @@ class Disciple_Tools_Chatwoot_API
             return null;
         }
 
-        $api_url = $chatwoot_url . '/api/v1/accounts/' . intval( $account_id ) . '/inboxes/' . intval( $inbox_id );
+        $api_url = $chatwoot_url . '/api/v1/accounts/' . intval( $account_id ) . '/inboxes/' . $inbox_id;
 
         $response = wp_remote_get( $api_url, array(
             'headers' => array(
                 'Content-Type' => 'application/json',
                 'api_access_token' => $chatwoot_api_key,
             ),
+            'redirection' => 0,
             'timeout' => 30
         ));
 
@@ -282,14 +420,19 @@ class Disciple_Tools_Chatwoot_API
             return null;
         }
 
-        if ( !isset( $settings['inbox_names'] ) || !is_array( $settings['inbox_names'] ) ) {
-            $settings['inbox_names'] = array();
-        }
+        $inbox_names = self::get_cached_inbox_names();
+        $inbox_names[ $inbox_id ] = $inbox_data['name'];
+        update_option( self::INBOX_NAMES_OPTION, $inbox_names, false );
 
-        $settings['inbox_names'][ $inbox_id ] = $inbox_data['name'];
-        update_option( 'dt_chatwoot', $settings );
+        return $inbox_data['name'];
+    }
 
-        return $settings['inbox_names'][ $inbox_id ];
+    /**
+     * Inbox names are cached in their own option, so caching never rewrites the settings that hold the API key and webhook token.
+     */
+    private static function get_cached_inbox_names() {
+        $inbox_names = get_option( self::INBOX_NAMES_OPTION, array() );
+        return is_array( $inbox_names ) ? $inbox_names : array();
     }
 
     public static function get_account_id( $force_refresh = false ) {
@@ -351,7 +494,7 @@ class Disciple_Tools_Chatwoot_API
             $api_key = self::get_chatwoot_api_key();
         }
 
-        if ( empty( $chatwoot_url ) || empty( $api_key ) ) {
+        if ( empty( $chatwoot_url ) || empty( $api_key ) || !self::is_allowed_url( $chatwoot_url ) ) {
             return array();
         }
 
@@ -362,6 +505,7 @@ class Disciple_Tools_Chatwoot_API
                 'Content-Type' => 'application/json',
                 'api_access_token' => $api_key,
             ),
+            'redirection' => 0,
             'timeout' => 30
         ));
 
@@ -413,6 +557,7 @@ class Disciple_Tools_Chatwoot_API
                 'Content-Type' => 'application/json',
                 'api_access_token' => $chatwoot_api_key,
             ),
+            'redirection' => 0,
             'timeout' => 30,
         ) );
 
@@ -456,7 +601,7 @@ class Disciple_Tools_Chatwoot_API
         }
 
         $inboxes = array();
-        $settings = get_option( 'dt_chatwoot', array() );
+        $inbox_names = self::get_cached_inbox_names();
         $updated_cache = false;
 
         foreach ( $payload as $inbox ) {
@@ -474,18 +619,14 @@ class Disciple_Tools_Chatwoot_API
                 'channel_type' => $channel_type,
             );
 
-            if ( !isset( $settings['inbox_names'] ) || !is_array( $settings['inbox_names'] ) ) {
-                $settings['inbox_names'] = array();
-            }
-
-            if ( !isset( $settings['inbox_names'][ $inbox_id ] ) || $settings['inbox_names'][ $inbox_id ] !== $name ) {
-                $settings['inbox_names'][ $inbox_id ] = $name;
+            if ( !isset( $inbox_names[ $inbox_id ] ) || $inbox_names[ $inbox_id ] !== $name ) {
+                $inbox_names[ $inbox_id ] = $name;
                 $updated_cache = true;
             }
         }
 
         if ( $updated_cache ) {
-            update_option( 'dt_chatwoot', $settings );
+            update_option( self::INBOX_NAMES_OPTION, $inbox_names, false );
         }
 
         return $inboxes;

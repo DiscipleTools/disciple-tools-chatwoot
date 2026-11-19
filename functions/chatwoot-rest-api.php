@@ -3,6 +3,11 @@ if ( !defined( 'ABSPATH' ) ) { exit; } // Exit if accessed directly.
 
 class Disciple_Tools_Chatwoot_Endpoints
 {
+    // Postmeta on a D.T contact holding "<account id>_<Chatwoot contact id>" for each Chatwoot contact mapped to it.
+    const CHATWOOT_CONTACT_META = 'chatwoot_contact';
+    // Comment meta holding the Chatwoot message id of a message added by message_created.
+    const CHATWOOT_MESSAGE_META = 'chatwoot_message_id';
+
     public function __construct() {
         add_action( 'rest_api_init', [ $this, 'add_api_routes' ] );
     }
@@ -15,17 +20,17 @@ class Disciple_Tools_Chatwoot_Endpoints
             $namespace, '/sync', [
                 'methods'  => 'POST',
                 'callback' => [ $this, 'sync' ],
-                'permission_callback' => function( WP_REST_Request $request ) {
-                    return true;
-                },
+                'permission_callback' => [ 'Disciple_Tools_Chatwoot_Webhook_Security', 'authorize_request' ],
             ]
         );
     }
 
 
     public function sync( WP_REST_Request $request ) {
+        // Imports run as no user, so a logged-in caller is never made the creator or sharer of the records.
+        wp_set_current_user( 0 );
+
         $params = $request->get_params();
-        dt_write_log( $params['event'] );
 
 
         if ( !isset( $params['event'] ) ){
@@ -38,7 +43,7 @@ class Disciple_Tools_Chatwoot_Endpoints
 
         switch ( $event ) {
             case 'message_created':
-                $this->handle_message_created( $params );
+                $this->handle_message_created( $params, Disciple_Tools_Chatwoot_Webhook_Security::has_valid_signature( $request ) );
                 break;
             case 'conversation_updated':
                 $this->handle_conversation_updated( $params );
@@ -69,7 +74,12 @@ class Disciple_Tools_Chatwoot_Endpoints
             return;
         }
 
-        $contact_id = $params['dt_contact_id'];
+        $params = $this->get_verified_macro_params( $params['conversation_id'] );
+        if ( empty( $params ) ){
+            return;
+        }
+
+        $contact_id = $this->get_linked_contact_id( $params );
         $full_conversation = [];
 
         if ( empty( $contact_id ) ){
@@ -90,6 +100,7 @@ class Disciple_Tools_Chatwoot_Endpoints
 
             $contact_id = $contact['ID'];
             $contact_url = $contact['permalink'];
+            add_post_meta( $contact_id, self::CHATWOOT_CONTACT_META, $this->get_chatwoot_contact_key( $params ) );
             Disciple_Tools_Chatwoot_API::set_contact_attributes(
                 [ 'dt_contact_id' => $contact_id, 'dt_contact_url' => $contact_url ],
                 $params['account_id'],
@@ -144,24 +155,131 @@ class Disciple_Tools_Chatwoot_Endpoints
         return true;
     }
 
-    private function handle_message_created( $params ) {
+    private function get_chatwoot_contact_key( $params ) {
+        return intval( $params['account_id'] ) . '_' . intval( $params['sender']['id'] ?? 0 );
+    }
+
+    /**
+     * The Chatwoot dt_contact_id attribute is editable by the chat visitor, so it is only trusted when the
+     * D.T contact is mapped to this Chatwoot contact, or is already linked to one of its conversations.
+     */
+    private function get_linked_contact_id( $params ) {
+        $contact_id = intval( $params['dt_contact_id'] ?? 0 );
+        if ( $contact_id <= 0 || get_post_type( $contact_id ) !== 'contacts' ) {
+            return 0;
+        }
+
+        $contact_key = $this->get_chatwoot_contact_key( $params );
+        if ( in_array( $contact_key, get_post_meta( $contact_id, self::CHATWOOT_CONTACT_META ), true ) ) {
+            return $this->get_merged_contact_id( $contact_id );
+        }
+
+        $chatwoot_conversation_ids = Disciple_Tools_Chatwoot_API::get_contact_conversation_ids( $params['account_id'], $params['sender']['id'] ?? 0 );
+        foreach ( $chatwoot_conversation_ids as $chatwoot_conversation_id ) {
+            $dt_conversation_id = (int) DT_Conversations_API::find_record_by_handle( 'chatwoot_' . intval( $params['account_id'] ) . '_' . $chatwoot_conversation_id );
+            if ( empty( $dt_conversation_id ) ) {
+                continue;
+            }
+            $dt_conversation = DT_Posts::get_post( 'conversations', $dt_conversation_id, true, false );
+            $linked_contact_ids = is_wp_error( $dt_conversation ) ? [] : array_map( 'intval', array_column( $dt_conversation['contacts'] ?? [], 'ID' ) );
+            if ( in_array( $contact_id, $linked_contact_ids, true ) ) {
+                add_post_meta( $contact_id, self::CHATWOOT_CONTACT_META, $contact_key );
+                return $this->get_merged_contact_id( $contact_id );
+            }
+        }
+
+        dt_write_log( 'Chatwoot dt_contact_id ' . $contact_id . ' is not linked to Chatwoot contact ' . $contact_key . ', creating a new contact' );
+        return 0;
+    }
+
+    /**
+     * D.T closes a merged duplicate with duplicate_of pointing at the contact that remains, so new chats go there.
+     */
+    private function get_merged_contact_id( $contact_id ) {
+        $seen = [];
+        while ( !in_array( $contact_id, $seen, true ) ) {
+            $seen[] = $contact_id;
+            $primary_id = intval( get_post_meta( $contact_id, 'duplicate_of', true ) );
+            if ( $primary_id <= 0 || get_post_type( $primary_id ) !== 'contacts' ) {
+                break;
+            }
+            $contact_id = $primary_id;
+        }
+        return $contact_id;
+    }
+
+    /**
+     * Rebuild the macro params from the conversation as stored in Chatwoot, so nothing in the
+     * unsigned macro request is trusted. Only conversations labelled dt-sync by the macro are accepted.
+     */
+    private function get_verified_macro_params( $conversation_id ) {
+        $account_id = Disciple_Tools_Chatwoot_API::get_account_id();
+        $conversation_id = absint( $conversation_id );
+        if ( empty( $account_id ) || empty( $conversation_id ) ){
+            return false;
+        }
+
+        $conversation = Disciple_Tools_Chatwoot_API::get_conversation( $account_id, $conversation_id );
+        $labels = isset( $conversation['labels'] ) && is_array( $conversation['labels'] ) ? $conversation['labels'] : [];
+        if ( empty( $conversation ) || !in_array( 'dt-sync', $labels, true ) ){
+            dt_write_log( 'Chatwoot conversation ' . $conversation_id . ' not found or not labelled dt-sync, skipping macro' );
+            return false;
+        }
+
+        $conversation['channel'] = $conversation['meta']['channel'] ?? null;
+        $conversation['trigger'] = true;
+        $params = Chat_Functions::format_params( $conversation );
+        if ( empty( $params['conversation_id'] ) || empty( $params['sender']['id'] ) ){
+            return false;
+        }
+        $params['account_id'] = $account_id;
+        $params['inbox_name'] = Disciple_Tools_Chatwoot_API::get_inbox_name( $account_id, $params['inbox_id'] );
+
+        return $params;
+    }
+
+    /**
+     * @param array $params
+     * @param bool $is_signed Whether Chatwoot's webhook signature was verified. Unsigned messages are re-fetched from Chatwoot.
+     */
+    private function handle_message_created( $params, $is_signed = false ) {
         if ( empty( $params['dt_conversation_id'] ) ) {
             dt_write_log( 'No conversation_id found in Chatwoot custom attributes, skipping message sync' );
             return;
         }
 
-        $dt_conversation_id = (int) $params['dt_conversation_id'];
-
-        // Verify the conversation exists in D.T
-        $handle = 'chatwoot_' . $params['account_id'] . '_' . $params['conversation_id'];
-        $exists = DT_Conversations_API::find_record_by_handle( $handle, true );
-
-        if ( is_wp_error( $exists ) || empty( $exists ) ) {
-            dt_write_log( 'Conversation ID ' . $dt_conversation_id . ' not found in D.T, skipping message sync' );
+        $account_id = Disciple_Tools_Chatwoot_API::get_account_id();
+        $conversation_id = absint( $params['conversation_id'] );
+        if ( empty( $account_id ) || empty( $conversation_id ) || intval( $params['account_id'] ) !== intval( $account_id ) ) {
             return;
         }
 
-        $this->add_message_to_conversation( $dt_conversation_id, $params['last_message'], $params['conversation_type'] );
+        // Verify the conversation exists in D.T
+        $handle = 'chatwoot_' . $account_id . '_' . $conversation_id;
+        $dt_conversation_id = (int) DT_Conversations_API::find_record_by_handle( $handle );
+
+        if ( empty( $dt_conversation_id ) ) {
+            dt_write_log( 'Conversation ' . $handle . ' not found in D.T, skipping message sync' );
+            return;
+        }
+
+        // Chatwoot names the D.T record the conversation was synced to, and it must be the record found by handle.
+        if ( intval( $params['dt_conversation_id'] ) !== $dt_conversation_id ) {
+            dt_write_log( 'Chatwoot conversation ' . $conversation_id . ' is linked to another D.T record, skipping message sync' );
+            return;
+        }
+
+        $message = $params['last_message'];
+        if ( !$is_signed ) {
+            $message = Disciple_Tools_Chatwoot_API::get_conversation_message( $account_id, $conversation_id, $message['id'] ?? 0 );
+            if ( empty( $message ) ) {
+                dt_write_log( 'Message not found in Chatwoot conversation ' . $conversation_id . ', skipping message sync' );
+                return;
+            }
+        }
+
+        $conversation_type = get_post_meta( $dt_conversation_id, 'type', true );
+        $this->add_message_to_conversation( $dt_conversation_id, $message, !empty( $conversation_type ) ? $conversation_type : 'chatwoot' );
 
         return true;
     }
@@ -310,7 +428,8 @@ class Disciple_Tools_Chatwoot_Endpoints
             }
         }
 
-        return DT_Posts::create_post( 'contacts', $contact_fields, true, false, [ 'check_for_duplicates' => [ 'contact_email', 'contact_phone' ] ] );
+        // Chat identifiers are unverified, so never merge into an existing contact; the theme flags possible duplicates for review.
+        return DT_Posts::create_post( 'contacts', $contact_fields, true, false );
     }
 
     private function save_messages_to_conversation( $conversation_id, $conversation_messages, $conversation_type = 'chatwoot' ) {
@@ -359,8 +478,8 @@ class Disciple_Tools_Chatwoot_Endpoints
 
             $valid_messages = 0;
             foreach ( $chunk as $message ) {
-                // Skip invalid messages
-                if ( empty( $message['content'] ) || empty( $message['created_at'] ) ) {
+                // Skip invalid messages and Chatwoot private notes
+                if ( empty( $message['content'] ) || empty( $message['created_at'] ) || !empty( $message['private'] ) ) {
                     continue;
                 }
 
@@ -377,7 +496,7 @@ class Disciple_Tools_Chatwoot_Endpoints
                 $message_time = gmdate( 'Y-m-d H:i:s', $message['created_at'] );
 
                 // Sanitize content
-                $content = isset( $message['content'] ) ? $message['content'] : '';
+                $content = Chat_Functions::disable_markdown_images( $message['content'] );
 
                 $sql .= $wpdb->prepare( '( %d, %s, %s, %s, %s, %s, %d, %s, %d, %d ),',
                     $conversation_id,
@@ -403,7 +522,10 @@ class Disciple_Tools_Chatwoot_Endpoints
             $sql .= ';';
             $sql = str_replace( ',;', ';', $sql ); // remove last comma
 
+            // A failed query is logged with its values, which here are people's messages.
+            $suppress_errors = $wpdb->suppress_errors( true );
             $result = $wpdb->query( $sql ); // @phpcs:ignore
+            $wpdb->suppress_errors( $suppress_errors );
             if ( empty( $result ) || is_wp_error( $result ) ) {
                 return new WP_Error( __FUNCTION__, 'Failed to insert messages for conversation ' . $conversation_id );
             }
@@ -415,8 +537,8 @@ class Disciple_Tools_Chatwoot_Endpoints
     }
 
     private function add_message_to_conversation( $dt_conversation_id, $message_params, $conversation_type = 'chatwoot' ) {
-        // Skip if not a valid message
-        if ( empty( $message_params['content'] ) || empty( $message_params['created_at'] ) ) {
+        // Skip if not a valid message, or a Chatwoot private note
+        if ( empty( $message_params['content'] ) || empty( $message_params['created_at'] ) || !empty( $message_params['private'] ) ) {
             return false;
         }
 
@@ -427,17 +549,32 @@ class Disciple_Tools_Chatwoot_Endpoints
 
         $sender_name = isset( $message_params['sender']['name'] ) ? $message_params['sender']['name'] : 'Chatwoot';
         $message_time = gmdate( 'Y-m-d H:i:s', $message_params['created_at'] );
+        $message_id = intval( $message_params['id'] ?? 0 );
 
-        // Create comment on D.T conversation with the appropriate type
+        $content = Chat_Functions::disable_markdown_images( $message_params['content'] );
+
+        if ( $this->is_message_imported( $dt_conversation_id, $message_id, $message_time, $content ) ) {
+            return false;
+        }
+
+        $comment_args = [ 'comment_date' => $message_time, 'comment_author' => $sender_name ];
+        if ( $message_id > 0 ) {
+            $comment_args['comment_meta'] = [ self::CHATWOOT_MESSAGE_META => $message_id ];
+        }
+
+        // Create comment on D.T conversation with the appropriate type. A failed query is logged with its values, which here are people's messages.
+        global $wpdb;
+        $suppress_errors = $wpdb->suppress_errors( true );
         $result = DT_Posts::add_post_comment(
             'conversations',
             $dt_conversation_id,
-            $message_params['content'],
+            $content,
             $conversation_type,
-            [ 'comment_date' => $message_time, 'comment_author' => $sender_name ],
+            $comment_args,
             false,
             true
         );
+        $wpdb->suppress_errors( $suppress_errors );
 
         if ( is_wp_error( $result ) ) {
             dt_write_log( 'Failed to add comment to conversation ' . $dt_conversation_id . ': ' . $result->get_error_message() );
@@ -445,6 +582,27 @@ class Disciple_Tools_Chatwoot_Endpoints
         }
 
         return true;
+    }
+
+    /**
+     * A message is already on the record if a comment carries its Chatwoot id, or if a bulk-imported row (which
+     * carries no Chatwoot id) has exactly the same date and content.
+     */
+    private function is_message_imported( $dt_conversation_id, $message_id, $message_time, $content ) {
+        global $wpdb;
+        $found = $wpdb->get_var( $wpdb->prepare(
+            "SELECT c.comment_ID FROM $wpdb->comments c
+            LEFT JOIN $wpdb->commentmeta m ON ( m.comment_id = c.comment_ID AND m.meta_key = %s )
+            WHERE c.comment_post_ID = %d
+            AND ( m.meta_value = %s OR ( m.meta_id IS NULL AND c.comment_date_gmt = %s AND BINARY c.comment_content = %s ) )
+            LIMIT 1",
+            self::CHATWOOT_MESSAGE_META,
+            $dt_conversation_id,
+            $message_id > 0 ? (string) $message_id : '',
+            $message_time,
+            $content
+        ) );
+        return !empty( $found );
     }
 
     private function add_message_to_contact( $contact_id, $params, $summary = [] ) {
@@ -468,7 +626,7 @@ class Disciple_Tools_Chatwoot_Endpoints
                         $value = implode( ' ', array_map( 'strval', $value ) );
                     }
 
-                    $clean_summary = trim( wp_strip_all_tags( (string) $value ) );
+                    $clean_summary = trim( Chat_Functions::disable_markdown_images( wp_strip_all_tags( (string) $value ) ) );
                     if ( $clean_summary === '' ) {
                         continue;
                     }
@@ -479,11 +637,11 @@ class Disciple_Tools_Chatwoot_Endpoints
                     $comment_content .= sprintf( "[%s] %s\n", $language_label, $clean_summary );
                 }
             } else {
-                $comment_content .= wp_strip_all_tags( (string) $summary ) . "\n";
+                $comment_content .= Chat_Functions::disable_markdown_images( wp_strip_all_tags( (string) $summary ) ) . "\n";
             }
         }
 
-        DT_Posts::add_post_comment( 'contacts', (int) $contact_id, $comment_content, 'comment', [], false, false );
+        DT_Posts::add_post_comment( 'contacts', (int) $contact_id, Chat_Functions::disable_mentions( $comment_content ), 'comment', [], false, false );
     }
 }
 new Disciple_Tools_Chatwoot_Endpoints();

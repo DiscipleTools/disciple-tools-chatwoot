@@ -80,17 +80,12 @@ class Disciple_Tools_Chatwoot_Menu {
             <h2 class="nav-tab-wrapper">
                 <a href="<?php echo esc_attr( $link ) . 'general' ?>"
                    class="nav-tab <?php echo esc_html( ( $tab == 'general' || !isset( $tab ) ) ? 'nav-tab-active' : '' ); ?>">General</a>
-                <a href="<?php echo esc_attr( $link ) . 'second' ?>" class="nav-tab <?php echo esc_html( ( $tab == 'second' ) ? 'nav-tab-active' : '' ); ?>">Second</a>
             </h2>
 
             <?php
             switch ( $tab ) {
                 case 'general':
                     $object = new Disciple_Tools_Chatwoot_Tab_General();
-                    $object->content();
-                    break;
-                case 'second':
-                    $object = new Disciple_Tools_Chatwoot_Tab_Second();
                     $object->content();
                     break;
                 default:
@@ -144,9 +139,10 @@ class Disciple_Tools_Chatwoot_Tab_General {
         $chatwoot_url = isset( $settings['url'] ) ? $settings['url'] : '';
         $chatwoot_api_key = isset( $settings['api_key'] ) ? $settings['api_key'] : '';
         $default_assigned_user = isset( $settings['default_assigned_user'] ) ? $settings['default_assigned_user'] : '';
-        $integration_setup = isset( $settings['integration_setup'] ) ? $settings['integration_setup'] : false;
-        $summarize_with_ai = isset( $settings['summarize_with_ai'] ) ? (bool) $settings['summarize_with_ai'] : true;
-        $extract_contact_with_ai = isset( $settings['extract_contact_with_ai'] ) ? (bool) $settings['extract_contact_with_ai'] : true;
+        // Chatwoot is only contacted over https, so the integration is not active with any other URL.
+        $integration_setup = isset( $settings['integration_setup'] ) && Disciple_Tools_Chatwoot_API::is_allowed_url( $chatwoot_url ) ? $settings['integration_setup'] : false;
+        $summarize_with_ai = isset( $settings['summarize_with_ai'] ) ? (bool) $settings['summarize_with_ai'] : false;
+        $extract_contact_with_ai = isset( $settings['extract_contact_with_ai'] ) ? (bool) $settings['extract_contact_with_ai'] : false;
 
         // Get available accounts if credentials are set
         $available_accounts = array();
@@ -435,7 +431,20 @@ class Disciple_Tools_Chatwoot_Tab_General {
             }
 
             if ( isset( $post_vars['chatwoot-url'] ) ) {
-                $settings['url'] = esc_url_raw( $post_vars['chatwoot-url'] );
+                $new_url = esc_url_raw( $post_vars['chatwoot-url'] );
+                if ( $new_url !== '' && !Disciple_Tools_Chatwoot_API::is_allowed_url( $new_url ) ) {
+                    echo '<div class="notice notice-error"><p>' . esc_html__( 'The Chatwoot URL must start with https://. Settings were not saved.', 'disciple-tools-chatwoot' ) . '</p></div>';
+                    return;
+                }
+                // Settings tied to the previous Chatwoot instance are dropped, so its API key is never sent to another host.
+                // The webhook token belongs to this site and stays.
+                if ( !empty( $settings['url'] ) && $this->get_url_origin( $new_url ) !== $this->get_url_origin( $settings['url'] ) ) {
+                    unset( $settings['api_key'], $settings['account_id'], $settings['webhook_secret'], $settings['integration_setup'] );
+                    delete_option( Disciple_Tools_Chatwoot_API::INBOX_NAMES_OPTION );
+                    delete_transient( Disciple_Tools_Chatwoot_Webhook_Security::SYNC_TRANSIENT );
+                    delete_transient( Disciple_Tools_Chatwoot_Webhook_Security::SYNC_ERROR_TRANSIENT );
+                }
+                $settings['url'] = $new_url;
             }
 
             if ( isset( $post_vars['chatwoot-api-key'] ) && !empty( $post_vars['chatwoot-api-key'] ) ) {
@@ -468,8 +477,11 @@ class Disciple_Tools_Chatwoot_Tab_General {
                 }
             }
 
-            $settings['summarize_with_ai'] = isset( $post_vars['chatwoot-summarize-with-ai'] ) ? '1' : '0';
-            $settings['extract_contact_with_ai'] = isset( $post_vars['chatwoot-extract-contact-with-ai'] ) ? '1' : '0';
+            // The AI checkboxes are only on the main settings form, which is the form that carries the Chatwoot URL.
+            if ( isset( $post_vars['chatwoot-url'] ) ) {
+                $settings['summarize_with_ai'] = isset( $post_vars['chatwoot-summarize-with-ai'] ) ? '1' : '0';
+                $settings['extract_contact_with_ai'] = isset( $post_vars['chatwoot-extract-contact-with-ai'] ) ? '1' : '0';
+            }
 
             update_option( $token, $settings );
 
@@ -491,6 +503,16 @@ class Disciple_Tools_Chatwoot_Tab_General {
                 echo '<div class="notice notice-success"><p>Settings saved successfully!</p></div>';
             }
         }
+    }
+
+    private function get_url_origin( $url ) {
+        $parts = wp_parse_url( $url );
+        if ( empty( $parts['host'] ) ) {
+            return '';
+        }
+        $scheme = strtolower( $parts['scheme'] ?? '' );
+        $port = $parts['port'] ?? ( $scheme === 'http' ? 80 : 443 );
+        return $scheme . '://' . strtolower( $parts['host'] ) . ':' . $port;
     }
 
     private function render_inbox_source_mapping( $token, $settings ) {
@@ -627,6 +649,9 @@ class Disciple_Tools_Chatwoot_Tab_General {
         if ( empty( $chatwoot_url ) || empty( $chatwoot_api_key ) ) {
             return 'Missing Chatwoot URL or API key';
         }
+        if ( !Disciple_Tools_Chatwoot_API::is_allowed_url( $chatwoot_url ) ) {
+            return 'The Chatwoot URL must start with https://';
+        }
 
         // Get account ID - use stored value if available, otherwise fetch
         $account_id = isset( $settings['account_id'] ) && intval( $settings['account_id'] ) > 0
@@ -679,6 +704,12 @@ class Disciple_Tools_Chatwoot_Tab_General {
         $settings['integration_setup'] = true;
         update_option( $token, $settings );
 
+        // Adds the token to a macro or webhook that already existed, and stores the signing secret
+        $sync_result = Disciple_Tools_Chatwoot_Webhook_Security::sync_chatwoot();
+        if ( $sync_result !== true ) {
+            return 'Failed to add the security token to the Chatwoot macro and webhook: ' . $sync_result;
+        }
+
         return true;
     }
 
@@ -697,6 +728,7 @@ class Disciple_Tools_Chatwoot_Tab_General {
                 'api_access_token' => $api_key,
             ),
             'body' => json_encode( $data ),
+            'redirection' => 0,
             'timeout' => 30
         ));
 
@@ -727,7 +759,7 @@ class Disciple_Tools_Chatwoot_Tab_General {
         }
 
         $api_url = $chatwoot_url . '/api/v1/accounts/' . $account_id . '/macros';
-        $webhook_url = rest_url( 'dt-public/chatwoot/v1/sync' ) . '?trigger=true';
+        $webhook_url = Disciple_Tools_Chatwoot_Webhook_Security::get_sync_url( true );
 
         $data = array(
             'name' => 'Sync with D.T',
@@ -750,6 +782,7 @@ class Disciple_Tools_Chatwoot_Tab_General {
                 'api_access_token' => $api_key,
             ),
             'body' => json_encode( $data ),
+            'redirection' => 0,
             'timeout' => 30
         ));
 
@@ -776,6 +809,7 @@ class Disciple_Tools_Chatwoot_Tab_General {
                 'Content-Type' => 'application/json',
                 'api_access_token' => $api_key,
             ),
+            'redirection' => 0,
             'timeout' => 30
         ));
 
@@ -823,7 +857,7 @@ class Disciple_Tools_Chatwoot_Tab_General {
     private function create_webhook( $chatwoot_url, $api_key, $account_id ) {
         $api_url = $chatwoot_url . '/api/v1/accounts/' . $account_id . '/webhooks';
 
-        $webhook_url = rest_url( 'dt-public/chatwoot/v1/sync' );
+        $webhook_url = Disciple_Tools_Chatwoot_Webhook_Security::get_sync_url();
 
         $data = array(
             'url' => $webhook_url,
@@ -843,6 +877,7 @@ class Disciple_Tools_Chatwoot_Tab_General {
                 'api_access_token' => $api_key,
             ),
             'body' => json_encode( $data ),
+            'redirection' => 0,
             'timeout' => 30
         ));
 
@@ -882,6 +917,7 @@ class Disciple_Tools_Chatwoot_Tab_General {
                 'api_access_token' => $api_key,
             ),
             'body' => json_encode( $data ),
+            'redirection' => 0,
             'timeout' => 30
         ));
 
@@ -921,6 +957,7 @@ class Disciple_Tools_Chatwoot_Tab_General {
                 'api_access_token' => $api_key,
             ),
             'body' => json_encode( $data ),
+            'redirection' => 0,
             'timeout' => 30
         ));
 
@@ -972,79 +1009,3 @@ class Disciple_Tools_Chatwoot_Tab_General {
     }
 }
 
-
-/**
- * Class Disciple_Tools_Chatwoot_Tab_Second
- */
-class Disciple_Tools_Chatwoot_Tab_Second {
-    public function content() {
-        ?>
-        <div class="wrap">
-            <div id="poststuff">
-                <div id="post-body" class="metabox-holder columns-2">
-                    <div id="post-body-content">
-                        <!-- Main Column -->
-
-                        <?php $this->main_column() ?>
-
-                        <!-- End Main Column -->
-                    </div><!-- end post-body-content -->
-                    <div id="postbox-container-1" class="postbox-container">
-                        <!-- Right Column -->
-
-                        <?php $this->right_column() ?>
-
-                        <!-- End Right Column -->
-                    </div><!-- postbox-container 1 -->
-                    <div id="postbox-container-2" class="postbox-container">
-                    </div><!-- postbox-container 2 -->
-                </div><!-- post-body meta box container -->
-            </div><!--poststuff end -->
-        </div><!-- wrap end -->
-        <?php
-    }
-
-    public function main_column() {
-        ?>
-        <!-- Box -->
-        <table class="widefat striped">
-            <thead>
-            <tr>
-                <th>Header</th>
-            </tr>
-            </thead>
-            <tbody>
-            <tr>
-                <td>
-                    Content
-                </td>
-            </tr>
-            </tbody>
-        </table>
-        <br>
-        <!-- End Box -->
-        <?php
-    }
-
-    public function right_column() {
-        ?>
-        <!-- Box -->
-        <table class="widefat striped">
-            <thead>
-                <tr>
-                    <th>Information</th>
-                </tr>
-            </thead>
-            <tbody>
-            <tr>
-                <td>
-                    Content
-                </td>
-            </tr>
-            </tbody>
-        </table>
-        <br>
-        <!-- End Box -->
-        <?php
-    }
-}

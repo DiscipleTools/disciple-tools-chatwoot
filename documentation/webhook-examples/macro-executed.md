@@ -32,7 +32,7 @@ Array
             [created_at] => 2025-09-10T13:51:04.025Z
             [updated_at] => 2025-09-10T13:51:04.025Z
             [hmac_verified] => 
-            [pubsub_token] => goyGnkdoZpdLxaKqEmx9bZo6
+            [pubsub_token] => REDACTED
         )
 
     [id] => 22
