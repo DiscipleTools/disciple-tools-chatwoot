@@ -362,7 +362,8 @@ class Disciple_Tools_Chatwoot_Endpoints
             }
         }
 
-        return DT_Posts::create_post( 'contacts', $contact_fields, true, false, [ 'check_for_duplicates' => [ 'contact_email', 'contact_phone' ] ] );
+        // Chat identifiers are unverified, so never merge into an existing contact; the theme flags possible duplicates for review.
+        return DT_Posts::create_post( 'contacts', $contact_fields, true, false );
     }
 
     private function save_messages_to_conversation( $conversation_id, $conversation_messages, $conversation_type = 'chatwoot' ) {
