@@ -86,6 +86,17 @@ class Disciple_Tools_Chatwoot_Webhook_Security
         if ( !current_user_can( 'manage_dt' ) ) {
             return;
         }
+        $chatwoot_url = self::get_settings()['url'] ?? '';
+        if ( !empty( $chatwoot_url ) && !Disciple_Tools_Chatwoot_API::is_allowed_url( $chatwoot_url ) ) {
+            ?>
+            <div class="notice notice-error">
+                <p>
+                    <strong>Disciple.Tools - Chatwoot:</strong>
+                    <?php esc_html_e( 'Syncing with Chatwoot is paused because the Chatwoot URL does not start with https://. Update it in the Chatwoot plugin settings.', 'disciple-tools-chatwoot' ); ?>
+                </p>
+            </div>
+            <?php
+        }
         $error = get_transient( self::SYNC_ERROR_TRANSIENT );
         if ( empty( $error ) ) {
             return;

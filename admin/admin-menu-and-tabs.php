@@ -139,7 +139,8 @@ class Disciple_Tools_Chatwoot_Tab_General {
         $chatwoot_url = isset( $settings['url'] ) ? $settings['url'] : '';
         $chatwoot_api_key = isset( $settings['api_key'] ) ? $settings['api_key'] : '';
         $default_assigned_user = isset( $settings['default_assigned_user'] ) ? $settings['default_assigned_user'] : '';
-        $integration_setup = isset( $settings['integration_setup'] ) ? $settings['integration_setup'] : false;
+        // Chatwoot is only contacted over https, so the integration is not active with any other URL.
+        $integration_setup = isset( $settings['integration_setup'] ) && Disciple_Tools_Chatwoot_API::is_allowed_url( $chatwoot_url ) ? $settings['integration_setup'] : false;
         $summarize_with_ai = isset( $settings['summarize_with_ai'] ) ? (bool) $settings['summarize_with_ai'] : false;
         $extract_contact_with_ai = isset( $settings['extract_contact_with_ai'] ) ? (bool) $settings['extract_contact_with_ai'] : false;
 
