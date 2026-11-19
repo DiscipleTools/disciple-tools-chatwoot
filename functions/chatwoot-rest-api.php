@@ -5,6 +5,8 @@ class Disciple_Tools_Chatwoot_Endpoints
 {
     // Postmeta on a D.T contact holding "<account id>_<Chatwoot contact id>" for each Chatwoot contact mapped to it.
     const CHATWOOT_CONTACT_META = 'chatwoot_contact';
+    // Comment meta holding the Chatwoot message id of a message added by message_created.
+    const CHATWOOT_MESSAGE_META = 'chatwoot_message_id';
 
     public function __construct() {
         add_action( 'rest_api_init', [ $this, 'add_api_routes' ] );
@@ -254,7 +256,8 @@ class Disciple_Tools_Chatwoot_Endpoints
             }
         }
 
-        $this->add_message_to_conversation( $dt_conversation_id, $message, $params['conversation_type'] );
+        $conversation_type = get_post_meta( $dt_conversation_id, 'type', true );
+        $this->add_message_to_conversation( $dt_conversation_id, $message, !empty( $conversation_type ) ? $conversation_type : 'chatwoot' );
 
         return true;
     }
@@ -521,6 +524,16 @@ class Disciple_Tools_Chatwoot_Endpoints
 
         $sender_name = isset( $message_params['sender']['name'] ) ? $message_params['sender']['name'] : 'Chatwoot';
         $message_time = gmdate( 'Y-m-d H:i:s', $message_params['created_at'] );
+        $message_id = intval( $message_params['id'] ?? 0 );
+
+        if ( $this->is_message_imported( $dt_conversation_id, $message_id, $message_time, $message_params['content'] ) ) {
+            return false;
+        }
+
+        $comment_args = [ 'comment_date' => $message_time, 'comment_author' => $sender_name ];
+        if ( $message_id > 0 ) {
+            $comment_args['comment_meta'] = [ self::CHATWOOT_MESSAGE_META => $message_id ];
+        }
 
         // Create comment on D.T conversation with the appropriate type
         $result = DT_Posts::add_post_comment(
@@ -528,7 +541,7 @@ class Disciple_Tools_Chatwoot_Endpoints
             $dt_conversation_id,
             $message_params['content'],
             $conversation_type,
-            [ 'comment_date' => $message_time, 'comment_author' => $sender_name ],
+            $comment_args,
             false,
             true
         );
@@ -539,6 +552,27 @@ class Disciple_Tools_Chatwoot_Endpoints
         }
 
         return true;
+    }
+
+    /**
+     * A message is already on the record if a comment carries its Chatwoot id, or (for bulk-imported rows,
+     * which carry no comment meta) has the same date and content.
+     */
+    private function is_message_imported( $dt_conversation_id, $message_id, $message_time, $content ) {
+        global $wpdb;
+        $found = $wpdb->get_var( $wpdb->prepare(
+            "SELECT c.comment_ID FROM $wpdb->comments c
+            LEFT JOIN $wpdb->commentmeta m ON ( m.comment_id = c.comment_ID AND m.meta_key = %s )
+            WHERE c.comment_post_ID = %d
+            AND ( m.meta_value = %s OR ( c.comment_date_gmt = %s AND c.comment_content = %s ) )
+            LIMIT 1",
+            self::CHATWOOT_MESSAGE_META,
+            $dt_conversation_id,
+            $message_id > 0 ? (string) $message_id : '',
+            $message_time,
+            $content
+        ) );
+        return !empty( $found );
     }
 
     private function add_message_to_contact( $contact_id, $params, $summary = [] ) {
