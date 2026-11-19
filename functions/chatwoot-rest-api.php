@@ -31,7 +31,6 @@ class Disciple_Tools_Chatwoot_Endpoints
         wp_set_current_user( 0 );
 
         $params = $request->get_params();
-        dt_write_log( $params['event'] );
 
 
         if ( !isset( $params['event'] ) ){
@@ -501,7 +500,10 @@ class Disciple_Tools_Chatwoot_Endpoints
             $sql .= ';';
             $sql = str_replace( ',;', ';', $sql ); // remove last comma
 
+            // A failed query is logged with its values, which here are people's messages.
+            $suppress_errors = $wpdb->suppress_errors( true );
             $result = $wpdb->query( $sql ); // @phpcs:ignore
+            $wpdb->suppress_errors( $suppress_errors );
             if ( empty( $result ) || is_wp_error( $result ) ) {
                 return new WP_Error( __FUNCTION__, 'Failed to insert messages for conversation ' . $conversation_id );
             }
