@@ -22,6 +22,9 @@ class Disciple_Tools_Chatwoot_Endpoints
 
 
     public function sync( WP_REST_Request $request ) {
+        // Imports run as no user, so a logged-in caller is never made the creator or sharer of the records.
+        wp_set_current_user( 0 );
+
         $params = $request->get_params();
         dt_write_log( $params['event'] );
 
