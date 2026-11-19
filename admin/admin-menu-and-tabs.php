@@ -435,7 +435,12 @@ class Disciple_Tools_Chatwoot_Tab_General {
             }
 
             if ( isset( $post_vars['chatwoot-url'] ) ) {
-                $settings['url'] = esc_url_raw( $post_vars['chatwoot-url'] );
+                $new_url = esc_url_raw( $post_vars['chatwoot-url'] );
+                // The stored API key is only ever sent to the host it was entered for.
+                if ( !empty( $settings['url'] ) && $this->get_url_origin( $new_url ) !== $this->get_url_origin( $settings['url'] ) ) {
+                    unset( $settings['api_key'] );
+                }
+                $settings['url'] = $new_url;
             }
 
             if ( isset( $post_vars['chatwoot-api-key'] ) && !empty( $post_vars['chatwoot-api-key'] ) ) {
@@ -491,6 +496,16 @@ class Disciple_Tools_Chatwoot_Tab_General {
                 echo '<div class="notice notice-success"><p>Settings saved successfully!</p></div>';
             }
         }
+    }
+
+    private function get_url_origin( $url ) {
+        $parts = wp_parse_url( $url );
+        if ( empty( $parts['host'] ) ) {
+            return '';
+        }
+        $scheme = strtolower( $parts['scheme'] ?? '' );
+        $port = $parts['port'] ?? ( $scheme === 'http' ? 80 : 443 );
+        return $scheme . '://' . strtolower( $parts['host'] ) . ':' . $port;
     }
 
     private function render_inbox_source_mapping( $token, $settings ) {
