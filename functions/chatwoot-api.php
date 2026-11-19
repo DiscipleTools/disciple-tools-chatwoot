@@ -142,6 +142,9 @@ class Disciple_Tools_Chatwoot_API
         return true;
     }
 
+    /**
+     * @return array|false Every message of the conversation, or false if any page could not be fetched.
+     */
     public static function get_full_conversation( $account_id, $conversation_id ) {
         $chatwoot_url = self::get_chatwoot_url();
         if ( empty( $chatwoot_url ) ){
@@ -181,13 +184,13 @@ class Disciple_Tools_Chatwoot_API
 
             if ( is_wp_error( $response ) ) {
                 dt_write_log( 'Error fetching conversation (page ' . $page . '): ' . $response->get_error_message() );
-                break;
+                return false;
             }
 
             $response_code = wp_remote_retrieve_response_code( $response );
             if ( $response_code !== 200 ) {
                 dt_write_log( 'Failed to fetch conversation (page ' . $page . '). Response code: ' . $response_code );
-                break;
+                return false;
             }
 
             $body = wp_remote_retrieve_body( $response );
@@ -195,7 +198,7 @@ class Disciple_Tools_Chatwoot_API
 
             if ( json_last_error() !== JSON_ERROR_NONE ) {
                 dt_write_log( 'Error decoding JSON response (page ' . $page . '): ' . json_last_error_msg() );
-                break;
+                return false;
             }
 
             $messages = isset( $data['payload'] ) && is_array( $data['payload'] ) ? $data['payload'] : array();

@@ -314,20 +314,22 @@ class Disciple_Tools_Chatwoot_Conversation_Tile {
             ];
         }
 
-        // Delete existing comments for this conversation
-        global $wpdb;
-        $deleted = $wpdb->delete(
-            $wpdb->comments,
-            [ 'comment_post_ID' => $dt_conversation_id ],
-            [ '%d' ]
-        );
-
-        if ( $deleted === false ) {
-            dt_write_log( 'Failed to delete existing comments for conversation ' . $dt_conversation_id );
-        }
-
         // Get conversation type from the conversation record
         $conversation_type = isset( $conversation['type']['key'] ) ? $conversation['type']['key'] : 'chatwoot';
+
+        // Replace only the messages imported from Chatwoot (no D.T user, the record's type); notes written by D.T users stay.
+        global $wpdb;
+        $wpdb->query( 'START TRANSACTION' );
+        $imported_ids = array_map( 'intval', $wpdb->get_col( $wpdb->prepare(
+            "SELECT comment_ID FROM $wpdb->comments WHERE comment_post_ID = %d AND comment_type = %s AND user_id = 0",
+            $dt_conversation_id,
+            $conversation_type
+        ) ) );
+        if ( !empty( $imported_ids ) ) {
+            $ids_sql = implode( ',', $imported_ids );
+            $wpdb->query( "DELETE FROM $wpdb->commentmeta WHERE comment_id IN ( $ids_sql )" ); // @phpcs:ignore
+            $wpdb->query( "DELETE FROM $wpdb->comments WHERE comment_ID IN ( $ids_sql )" ); // @phpcs:ignore
+        }
 
         // Re-insert all messages using bulk insert
         $endpoints_class = new Disciple_Tools_Chatwoot_Endpoints();
@@ -337,8 +339,11 @@ class Disciple_Tools_Chatwoot_Conversation_Tile {
         $result = $method->invoke( $endpoints_class, $messages, $dt_conversation_id, $conversation_type );
 
         if ( is_wp_error( $result ) ) {
+            $wpdb->query( 'ROLLBACK' );
             return $result;
         }
+        $wpdb->query( 'COMMIT' );
+        clean_comment_cache( $imported_ids );
 
         return [
             'success' => true,
