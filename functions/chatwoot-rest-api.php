@@ -457,8 +457,8 @@ class Disciple_Tools_Chatwoot_Endpoints
 
             $valid_messages = 0;
             foreach ( $chunk as $message ) {
-                // Skip invalid messages
-                if ( empty( $message['content'] ) || empty( $message['created_at'] ) ) {
+                // Skip invalid messages and Chatwoot private notes
+                if ( empty( $message['content'] ) || empty( $message['created_at'] ) || !empty( $message['private'] ) ) {
                     continue;
                 }
 
@@ -513,8 +513,8 @@ class Disciple_Tools_Chatwoot_Endpoints
     }
 
     private function add_message_to_conversation( $dt_conversation_id, $message_params, $conversation_type = 'chatwoot' ) {
-        // Skip if not a valid message
-        if ( empty( $message_params['content'] ) || empty( $message_params['created_at'] ) ) {
+        // Skip if not a valid message, or a Chatwoot private note
+        if ( empty( $message_params['content'] ) || empty( $message_params['created_at'] ) || !empty( $message_params['private'] ) ) {
             return false;
         }
 

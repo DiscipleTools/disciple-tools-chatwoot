@@ -45,7 +45,8 @@ Only return the summary text itself—do not include headings, labels, or prefix
 
         $transcript = "Conversation Transcript:\n";
         foreach ( $conversation_messages as $message ) {
-            if ( empty( $message['content'] ) ) {
+            // Chatwoot private notes are internal to the Chatwoot team and never leave it.
+            if ( empty( $message['content'] ) || !empty( $message['private'] ) ) {
                 continue;
             }
 
@@ -157,7 +158,8 @@ Only return the summary text itself—do not include headings, labels, or prefix
 
         $transcript = "Conversation Transcript:\n";
         foreach ( $conversation_messages as $message ) {
-            if ( empty( $message['content'] ) ) {
+            // Chatwoot private notes are internal to the Chatwoot team and never leave it.
+            if ( empty( $message['content'] ) || !empty( $message['private'] ) ) {
                 continue;
             }
 
