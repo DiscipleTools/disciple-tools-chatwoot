@@ -254,7 +254,8 @@ class Disciple_Tools_Chatwoot_Webhook_Security
                 'api_access_token' => $api_key,
             ),
             'redirection' => 0,
-            'timeout' => 30,
+            // The sync runs during a wp-admin page load, so a slow Chatwoot must not hold the page for long.
+            'timeout' => 10,
         );
         if ( $body !== null ) {
             $args['body'] = wp_json_encode( $body );
