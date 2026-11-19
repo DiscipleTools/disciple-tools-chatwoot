@@ -74,6 +74,8 @@ class DT_Chatwoot_Migration_Engine
         if ( $target_migration_number >= count( self::get_migrations() ) ) {
             throw new Exception( "Migration number $target_migration_number does not exist" );
         }
+        // The lock is a transient that expires, and that the theme's Reset Lock button clears; a lock stored as an option never would.
+        delete_option( 'dt_chatwoot_migration_lock' );
         while ( true ) {
             $current_migration_number = get_option( 'dt_chatwoot_migration_number' );
             if ( $current_migration_number === false ) {
@@ -95,10 +97,10 @@ class DT_Chatwoot_Migration_Engine
 
             self::sanity_check_expected_tables( $migration->get_expected_tables() );
 
-            if ( (int) get_option( 'dt_chatwoot_migration_lock', 0 ) ) {
+            if ( !empty( get_transient( 'dt_chatwoot_migration_lock' ) ) ) {
                 throw new DT_Chatwoot_Migration_Lock_Exception();
             }
-            update_option( 'dt_chatwoot_migration_lock', '1' );
+            set_transient( 'dt_chatwoot_migration_lock', '1', DAY_IN_SECONDS );
 
             error_log( gmdate( ' Y-m-d H:i:s T' ) . " Starting migrating Chatwoot to number $activating_migration_number" );
             try {
@@ -116,7 +118,7 @@ class DT_Chatwoot_Migration_Engine
             update_option( 'dt_chatwoot_migration_number', (string) $activating_migration_number );
             error_log( gmdate( ' Y-m-d H:i:s T' ) . " Done migrating Chatwoot to number $activating_migration_number" );
 
-            update_option( 'dt_chatwoot_migration_lock', '0' );
+            delete_transient( 'dt_chatwoot_migration_lock' );
 
             $migration->test();
         }
@@ -149,7 +151,7 @@ class DT_Chatwoot_Migration_Engine
     }
     public static function display_migration_and_lock(){
         add_action( 'dt_utilities_system_details', function () {
-            $lock = get_option( 'dt_chatwoot_migration_lock', 0 ); ?>
+            $lock = get_transient( 'dt_chatwoot_migration_lock' ) ?: 0; ?>
             <tr>
                 <td><?php echo esc_html( sprintf( __( 'Chatwoot migration version: %1$s of %2$s' ), self::get_current_db_migration(), self::$migration_number ) ); ?>. Lock: <?php echo esc_html( $lock ); ?>  </td>
                 <td> <button name="reset_lock" value="dt_chatwoot_migration_lock">Reset Lock</button></td>
