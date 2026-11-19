@@ -330,8 +330,12 @@ class Disciple_Tools_Chatwoot_Conversation_Tile {
         ) ) );
         if ( !empty( $imported_ids ) ) {
             $ids_sql = implode( ',', $imported_ids );
-            $wpdb->query( "DELETE FROM $wpdb->commentmeta WHERE comment_id IN ( $ids_sql )" ); // @phpcs:ignore
-            $wpdb->query( "DELETE FROM $wpdb->comments WHERE comment_ID IN ( $ids_sql )" ); // @phpcs:ignore
+            $meta_deleted = $wpdb->query( "DELETE FROM $wpdb->commentmeta WHERE comment_id IN ( $ids_sql )" ); // @phpcs:ignore
+            $comments_deleted = $wpdb->query( "DELETE FROM $wpdb->comments WHERE comment_ID IN ( $ids_sql )" ); // @phpcs:ignore
+            if ( $meta_deleted === false || $comments_deleted === false ) {
+                $wpdb->query( 'ROLLBACK' );
+                return new WP_Error( 'delete_failed', __( 'Failed to replace the messages of this conversation', 'disciple-tools-chatwoot' ), [ 'status' => 500 ] );
+            }
         }
 
         // Re-insert all messages using bulk insert
