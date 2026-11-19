@@ -274,6 +274,9 @@ class Disciple_Tools_Chatwoot_API
         }
 
         $response_code = wp_remote_retrieve_response_code( $response );
+        if ( $response_code === 404 ) {
+            return array();
+        }
         if ( $response_code !== 200 ) {
             dt_write_log( 'Failed to fetch Chatwoot conversation. Response code: ' . $response_code );
             return false;

@@ -296,7 +296,10 @@ class Disciple_Tools_Chatwoot_Conversation_Tile {
 
         // The handle is user-editable, so also require the Chatwoot conversation to point back at this record
         $chatwoot_attributes = Disciple_Tools_Chatwoot_API::get_conversation_custom_attributes( $account_id, $chatwoot_conversation_id );
-        if ( !is_array( $chatwoot_attributes ) || intval( $chatwoot_attributes['dt_conversation_id'] ?? 0 ) !== $dt_conversation_id ) {
+        if ( !is_array( $chatwoot_attributes ) ) {
+            return new WP_Error( 'fetch_failed', __( 'Could not reach Chatwoot to check this conversation', 'disciple-tools-chatwoot' ), [ 'status' => 502 ] );
+        }
+        if ( intval( $chatwoot_attributes['dt_conversation_id'] ?? 0 ) !== $dt_conversation_id ) {
             return new WP_Error( 'no_permission', __( 'This record is not linked to that Chatwoot conversation', 'disciple-tools-chatwoot' ), [ 'status' => 403 ] );
         }
 
