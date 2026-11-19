@@ -6,6 +6,13 @@ if ( ! defined( 'ABSPATH' ) ) {
 class Disciple_Tools_Chatwoot_AI {
 
     /**
+     * LLM calls follow the AI plugin's endpoint policy: https on a public address, unless its dt_ai_allowed_endpoint filter allows the endpoint.
+     */
+    private static function is_allowed_llm_endpoint( $url ) {
+        return method_exists( 'Disciple_Tools_AI_API', 'is_allowed_endpoint' ) && Disciple_Tools_AI_API::is_allowed_endpoint( $url );
+    }
+
+    /**
      * Create a summary from a full Chatwoot conversation transcript.
      *
      * @param array $conversation_messages Array of message payloads returned from Chatwoot.
@@ -13,13 +20,6 @@ class Disciple_Tools_Chatwoot_AI {
      *
      * @return array|WP_Error
      */
-    /**
-     * LLM calls follow the AI plugin's endpoint policy: https on a public address, unless its dt_ai_allowed_endpoint filter allows the endpoint.
-     */
-    private static function is_allowed_llm_endpoint( $url ) {
-        return method_exists( 'Disciple_Tools_AI_API', 'is_allowed_endpoint' ) && Disciple_Tools_AI_API::is_allowed_endpoint( $url );
-    }
-
     public static function summarize( array $conversation_messages, $conversation_post_id = null ) {
         if ( empty( $conversation_messages ) ) {
             return new WP_Error( 'empty_conversation', 'Conversation messages are required to generate a summary.', [ 'status' => 400 ] );
