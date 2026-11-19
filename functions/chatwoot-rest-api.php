@@ -614,7 +614,7 @@ class Disciple_Tools_Chatwoot_Endpoints
             }
         }
 
-        DT_Posts::add_post_comment( 'contacts', (int) $contact_id, $comment_content, 'comment', [], false, false );
+        DT_Posts::add_post_comment( 'contacts', (int) $contact_id, Chat_Functions::disable_mentions( $comment_content ), 'comment', [], false, false );
     }
 }
 new Disciple_Tools_Chatwoot_Endpoints();

@@ -87,6 +87,13 @@ if ( ! class_exists( 'Chat_Functions' ) ) {
         }
 
         /**
+         * D.T notifies and emails any user named in "@[name](user id)", so text from outside the team must not form that pair.
+         */
+        public static function disable_mentions( $text ) {
+            return str_replace( '@[', '@ [', (string) $text );
+        }
+
+        /**
          * Convert arbitrary phone-like strings into a normalized representation used by DT.
          *
          * @param string $raw_phone
