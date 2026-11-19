@@ -582,8 +582,8 @@ class Disciple_Tools_Chatwoot_Endpoints
     }
 
     /**
-     * A message is already on the record if a comment carries its Chatwoot id, or (for bulk-imported rows,
-     * which carry no comment meta) has the same date and content.
+     * A message is already on the record if a comment carries its Chatwoot id, or if a bulk-imported row (which
+     * carries no Chatwoot id) has exactly the same date and content.
      */
     private function is_message_imported( $dt_conversation_id, $message_id, $message_time, $content ) {
         global $wpdb;
@@ -591,7 +591,7 @@ class Disciple_Tools_Chatwoot_Endpoints
             "SELECT c.comment_ID FROM $wpdb->comments c
             LEFT JOIN $wpdb->commentmeta m ON ( m.comment_id = c.comment_ID AND m.meta_key = %s )
             WHERE c.comment_post_ID = %d
-            AND ( m.meta_value = %s OR ( c.comment_date_gmt = %s AND c.comment_content = %s ) )
+            AND ( m.meta_value = %s OR ( m.meta_id IS NULL AND c.comment_date_gmt = %s AND BINARY c.comment_content = %s ) )
             LIMIT 1",
             self::CHATWOOT_MESSAGE_META,
             $dt_conversation_id,
