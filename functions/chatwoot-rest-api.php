@@ -263,6 +263,12 @@ class Disciple_Tools_Chatwoot_Endpoints
             return;
         }
 
+        // Chatwoot names the D.T record the conversation was synced to, and it must be the record found by handle.
+        if ( intval( $params['dt_conversation_id'] ) !== $dt_conversation_id ) {
+            dt_write_log( 'Chatwoot conversation ' . $conversation_id . ' is linked to another D.T record, skipping message sync' );
+            return;
+        }
+
         $message = $params['last_message'];
         if ( !$is_signed ) {
             $message = Disciple_Tools_Chatwoot_API::get_conversation_message( $account_id, $conversation_id, $message['id'] ?? 0 );
