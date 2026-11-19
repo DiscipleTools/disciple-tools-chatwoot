@@ -340,7 +340,8 @@ class Disciple_Tools_Chatwoot_API
     }
 
     /**
-     * Find a message among the newest page of a conversation's messages.
+     * Find a message in a conversation. Chatwoot returns the page of messages older than "before", so asking for
+     * the page before the next id returns the page that ends with this message.
      */
     public static function get_conversation_message( $account_id, $conversation_id, $message_id ) {
         $message_id = intval( $message_id );
@@ -348,7 +349,7 @@ class Disciple_Tools_Chatwoot_API
             return false;
         }
 
-        $data = self::get_json( '/api/v1/accounts/' . intval( $account_id ) . '/conversations/' . intval( $conversation_id ) . '/messages' );
+        $data = self::get_json( '/api/v1/accounts/' . intval( $account_id ) . '/conversations/' . intval( $conversation_id ) . '/messages?before=' . ( $message_id + 1 ) );
         $messages = isset( $data['payload'] ) && is_array( $data['payload'] ) ? $data['payload'] : array();
         foreach ( $messages as $message ) {
             if ( isset( $message['id'] ) && intval( $message['id'] ) === $message_id ) {
