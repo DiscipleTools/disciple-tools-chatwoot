@@ -50,7 +50,7 @@ Array
                     [created_at] => 2025-09-11T10:06:08.049Z
                     [updated_at] => 2025-09-11T10:06:08.049Z
                     [hmac_verified] => 
-                    [pubsub_token] => VTVcrQ9fsViEyyQqAawsbaZo
+                    [pubsub_token] => REDACTED
                 )
 
             [id] => 26
@@ -115,7 +115,7 @@ Array
                                             [contact_url] => https://multisite.lwp/contacts/12084/
                                         )
 
-                                    [email] => corsacca@gmail.com
+                                    [email] => contact@example.com
                                     [id] => 38
                                     [identifier] => 
                                     [name] => Bob the builder
@@ -148,7 +148,7 @@ Array
                                     [contact_url] => https://multisite.lwp/contacts/12084/
                                 )
 
-                            [email] => corsacca@gmail.com
+                            [email] => contact@example.com
                             [id] => 38
                             [identifier] => 
                             [name] => Bob the builder
@@ -220,7 +220,7 @@ Array
                     [contact_url] => https://multisite.lwp/contacts/12084/
                 )
 
-            [email] => corsacca@gmail.com
+            [email] => contact@example.com
             [id] => 38
             [identifier] => 
             [name] => Bob the builder
