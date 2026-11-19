@@ -436,9 +436,13 @@ class Disciple_Tools_Chatwoot_Tab_General {
                     echo '<div class="notice notice-error"><p>' . esc_html__( 'The Chatwoot URL must start with https://. Settings were not saved.', 'disciple-tools-chatwoot' ) . '</p></div>';
                     return;
                 }
-                // The stored API key is only ever sent to the host it was entered for.
+                // Settings tied to the previous Chatwoot instance are dropped, so its API key is never sent to another host.
+                // The webhook token belongs to this site and stays.
                 if ( !empty( $settings['url'] ) && $this->get_url_origin( $new_url ) !== $this->get_url_origin( $settings['url'] ) ) {
-                    unset( $settings['api_key'] );
+                    unset( $settings['api_key'], $settings['account_id'], $settings['webhook_secret'], $settings['integration_setup'] );
+                    delete_option( Disciple_Tools_Chatwoot_API::INBOX_NAMES_OPTION );
+                    delete_transient( Disciple_Tools_Chatwoot_Webhook_Security::SYNC_TRANSIENT );
+                    delete_transient( Disciple_Tools_Chatwoot_Webhook_Security::SYNC_ERROR_TRANSIENT );
                 }
                 $settings['url'] = $new_url;
             }
