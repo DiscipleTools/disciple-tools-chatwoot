@@ -153,7 +153,7 @@ class DT_Chatwoot_Migration_Engine
         add_action( 'dt_utilities_system_details', function () {
             $lock = get_transient( 'dt_chatwoot_migration_lock' ) ?: 0; ?>
             <tr>
-                <td><?php echo esc_html( sprintf( __( 'Chatwoot migration version: %1$s of %2$s' ), self::get_current_db_migration(), self::$migration_number ) ); ?>. Lock: <?php echo esc_html( $lock ); ?>  </td>
+                <td><?php echo esc_html( sprintf( __( 'Chatwoot migration version: %1$s of %2$s', 'disciple-tools-chatwoot' ), self::get_current_db_migration(), self::$migration_number ) ); ?>. Lock: <?php echo esc_html( $lock ); ?>  </td>
                 <td> <button name="reset_lock" value="dt_chatwoot_migration_lock">Reset Lock</button></td>
             </tr>
         <?php });
