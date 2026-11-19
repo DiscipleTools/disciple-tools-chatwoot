@@ -218,6 +218,7 @@ class Disciple_Tools_Chatwoot_Endpoints
             return false;
         }
         $params['account_id'] = $account_id;
+        $params['inbox_name'] = Disciple_Tools_Chatwoot_API::get_inbox_name( $account_id, $params['inbox_id'] );
 
         return $params;
     }

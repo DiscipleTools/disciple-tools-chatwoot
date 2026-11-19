@@ -3,6 +3,8 @@ if ( !defined( 'ABSPATH' ) ) { exit; } // Exit if accessed directly.
 
 class Disciple_Tools_Chatwoot_API
 {
+    const INBOX_NAMES_OPTION = 'dt_chatwoot_inbox_names';
+
     private static function get_chatwoot_url() {
         $settings = get_option( 'dt_chatwoot', array() );
         return isset( $settings['url'] ) ? $settings['url'] : '';
@@ -339,13 +341,14 @@ class Disciple_Tools_Chatwoot_API
     }
 
     public static function get_inbox_name( $account_id, $inbox_id ) {
-        if ( empty( $account_id ) || empty( $inbox_id ) ) {
+        $inbox_id = intval( $inbox_id );
+        if ( empty( $account_id ) || $inbox_id <= 0 ) {
             return null;
         }
 
-        $settings = get_option( 'dt_chatwoot', array() );
-        if ( isset( $settings['inbox_names'][ $inbox_id ] ) && !empty( $settings['inbox_names'][ $inbox_id ] ) ) {
-            return $settings['inbox_names'][ $inbox_id ];
+        $inbox_names = self::get_cached_inbox_names();
+        if ( !empty( $inbox_names[ $inbox_id ] ) ) {
+            return $inbox_names[ $inbox_id ];
         }
 
         $chatwoot_url = self::get_chatwoot_url();
@@ -360,7 +363,7 @@ class Disciple_Tools_Chatwoot_API
             return null;
         }
 
-        $api_url = $chatwoot_url . '/api/v1/accounts/' . intval( $account_id ) . '/inboxes/' . intval( $inbox_id );
+        $api_url = $chatwoot_url . '/api/v1/accounts/' . intval( $account_id ) . '/inboxes/' . $inbox_id;
 
         $response = wp_remote_get( $api_url, array(
             'headers' => array(
@@ -394,14 +397,19 @@ class Disciple_Tools_Chatwoot_API
             return null;
         }
 
-        if ( !isset( $settings['inbox_names'] ) || !is_array( $settings['inbox_names'] ) ) {
-            $settings['inbox_names'] = array();
-        }
+        $inbox_names = self::get_cached_inbox_names();
+        $inbox_names[ $inbox_id ] = $inbox_data['name'];
+        update_option( self::INBOX_NAMES_OPTION, $inbox_names, false );
 
-        $settings['inbox_names'][ $inbox_id ] = $inbox_data['name'];
-        update_option( 'dt_chatwoot', $settings );
+        return $inbox_data['name'];
+    }
 
-        return $settings['inbox_names'][ $inbox_id ];
+    /**
+     * Inbox names are cached in their own option, so caching never rewrites the settings that hold the API key and webhook token.
+     */
+    private static function get_cached_inbox_names() {
+        $inbox_names = get_option( self::INBOX_NAMES_OPTION, array() );
+        return is_array( $inbox_names ) ? $inbox_names : array();
     }
 
     public static function get_account_id( $force_refresh = false ) {
@@ -568,7 +576,7 @@ class Disciple_Tools_Chatwoot_API
         }
 
         $inboxes = array();
-        $settings = get_option( 'dt_chatwoot', array() );
+        $inbox_names = self::get_cached_inbox_names();
         $updated_cache = false;
 
         foreach ( $payload as $inbox ) {
@@ -586,18 +594,14 @@ class Disciple_Tools_Chatwoot_API
                 'channel_type' => $channel_type,
             );
 
-            if ( !isset( $settings['inbox_names'] ) || !is_array( $settings['inbox_names'] ) ) {
-                $settings['inbox_names'] = array();
-            }
-
-            if ( !isset( $settings['inbox_names'][ $inbox_id ] ) || $settings['inbox_names'][ $inbox_id ] !== $name ) {
-                $settings['inbox_names'][ $inbox_id ] = $name;
+            if ( !isset( $inbox_names[ $inbox_id ] ) || $inbox_names[ $inbox_id ] !== $name ) {
+                $inbox_names[ $inbox_id ] = $name;
                 $updated_cache = true;
             }
         }
 
         if ( $updated_cache ) {
-            update_option( 'dt_chatwoot', $settings );
+            update_option( self::INBOX_NAMES_OPTION, $inbox_names, false );
         }
 
         return $inboxes;

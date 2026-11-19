@@ -75,10 +75,6 @@ if ( ! class_exists( 'Chat_Functions' ) ) {
                 $formatted_params['labels'] = $params['conversation']['labels'] ?? null;
             }
 
-            if ( ! empty( $formatted_params['account_id'] ) && ! empty( $formatted_params['inbox_id'] ) ) {
-                $formatted_params['inbox_name'] = Disciple_Tools_Chatwoot_API::get_inbox_name( $formatted_params['account_id'], $formatted_params['inbox_id'] );
-            }
-
             return $formatted_params;
         }
 
