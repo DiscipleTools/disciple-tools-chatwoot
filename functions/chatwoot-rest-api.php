@@ -475,7 +475,7 @@ class Disciple_Tools_Chatwoot_Endpoints
                 $message_time = gmdate( 'Y-m-d H:i:s', $message['created_at'] );
 
                 // Sanitize content
-                $content = isset( $message['content'] ) ? $message['content'] : '';
+                $content = Chat_Functions::disable_markdown_images( $message['content'] );
 
                 $sql .= $wpdb->prepare( '( %d, %s, %s, %s, %s, %s, %d, %s, %d, %d ),',
                     $conversation_id,
@@ -527,7 +527,9 @@ class Disciple_Tools_Chatwoot_Endpoints
         $message_time = gmdate( 'Y-m-d H:i:s', $message_params['created_at'] );
         $message_id = intval( $message_params['id'] ?? 0 );
 
-        if ( $this->is_message_imported( $dt_conversation_id, $message_id, $message_time, $message_params['content'] ) ) {
+        $content = Chat_Functions::disable_markdown_images( $message_params['content'] );
+
+        if ( $this->is_message_imported( $dt_conversation_id, $message_id, $message_time, $content ) ) {
             return false;
         }
 
@@ -540,7 +542,7 @@ class Disciple_Tools_Chatwoot_Endpoints
         $result = DT_Posts::add_post_comment(
             'conversations',
             $dt_conversation_id,
-            $message_params['content'],
+            $content,
             $conversation_type,
             $comment_args,
             false,
@@ -597,7 +599,7 @@ class Disciple_Tools_Chatwoot_Endpoints
                         $value = implode( ' ', array_map( 'strval', $value ) );
                     }
 
-                    $clean_summary = trim( wp_strip_all_tags( (string) $value ) );
+                    $clean_summary = trim( Chat_Functions::disable_markdown_images( wp_strip_all_tags( (string) $value ) ) );
                     if ( $clean_summary === '' ) {
                         continue;
                     }
@@ -608,7 +610,7 @@ class Disciple_Tools_Chatwoot_Endpoints
                     $comment_content .= sprintf( "[%s] %s\n", $language_label, $clean_summary );
                 }
             } else {
-                $comment_content .= wp_strip_all_tags( (string) $summary ) . "\n";
+                $comment_content .= Chat_Functions::disable_markdown_images( wp_strip_all_tags( (string) $summary ) ) . "\n";
             }
         }
 

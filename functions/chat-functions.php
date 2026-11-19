@@ -79,6 +79,14 @@ if ( ! class_exists( 'Chat_Functions' ) ) {
         }
 
         /**
+         * Chat text comes from outside the team, so "![alt](url)" must not render as an image that loads when a D.T user
+         * opens the record. Breaking the "![" pair leaves it as a link that needs a click.
+         */
+        public static function disable_markdown_images( $text ) {
+            return str_replace( '![', '! [', (string) $text );
+        }
+
+        /**
          * Convert arbitrary phone-like strings into a normalized representation used by DT.
          *
          * @param string $raw_phone
