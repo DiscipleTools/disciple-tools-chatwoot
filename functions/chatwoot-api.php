@@ -37,7 +37,7 @@ class Disciple_Tools_Chatwoot_API
             return (bool) $settings['summarize_with_ai'];
         }
 
-        return true;
+        return false;
     }
 
     public static function is_extract_contact_with_ai_enabled() {
@@ -47,7 +47,7 @@ class Disciple_Tools_Chatwoot_API
             return (bool) $settings['extract_contact_with_ai'];
         }
 
-        return true;
+        return false;
     }
 
     public static function set_contact_attributes( $attributes, $account_id, $contact_id ) {
